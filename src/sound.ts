@@ -22,6 +22,7 @@ const HAPTIC: Partial<Record<Sfx, () => Promise<void>>> = {
 
 const players: Partial<Record<Sfx, AudioPlayer>> = {};
 let muted = false;
+let haptics = true;
 let ready = false;
 
 function init() {
@@ -32,7 +33,7 @@ function init() {
 }
 
 export function play(name: Sfx) {
-  if (Platform.OS !== 'web') HAPTIC[name]?.().catch(() => {});
+  if (haptics && Platform.OS !== 'web') HAPTIC[name]?.().catch(() => {});
   if (muted) return;
   try {
     init();
@@ -46,3 +47,4 @@ export function play(name: Sfx) {
 
 export const isMuted = () => muted;
 export const setMuted = (m: boolean) => { muted = m; };
+export const setHaptics = (on: boolean) => { haptics = on; };

@@ -7,7 +7,7 @@ import { Scenery } from './Scenery';
 import { FadeIn, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
 
-export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle';
+export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle' | 'settings';
 
 /** The crossed WORD / CROSS tile logo; the shared O is the gold tile. */
 function Logo() {
@@ -44,8 +44,8 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
       <ScrollView contentContainerStyle={s.wrap}>
         <FadeIn delay={0} y={-10} style={s.topRow}>
           <View style={s.chip}><Icon name="fire" size={18} color="#FF8A3D" /><Text style={s.chipText}>{days} day{days === 1 ? '' : 's'}</Text></View>
-          <Pressable onPress={() => updateGame({ muted: !g.muted })} hitSlop={10} style={s.chip}>
-            <Icon name={g.muted ? 'volume-off' : 'volume-high'} size={18} color="#fff" />
+          <Pressable onPress={() => go('settings')} hitSlop={10} style={s.chip} accessibilityLabel="Settings">
+            <Icon name="cog" size={18} color="#fff" />
           </Pressable>
           <View style={s.chip}>
             <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>

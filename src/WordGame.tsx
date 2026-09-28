@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Board, emptyBoard, findMove, N, newBag, Placement, PREMIUM, validateMove, VALUES } from './scrabble';
 import { C, Confetti, F, Glow, MainButton, RoundButton, ScoreBar, Tile, Toast } from './ui';
@@ -30,6 +30,8 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
   const [toast, setToast] = useState<string | null>(null);
   const [over, setOver] = useState(false);
 
+  // Scores are final by the time `over` renders, so pick the jingle here.
+  useEffect(() => { if (over) { const id = setTimeout(() => play(you > opp ? 'win' : 'wrong'), 400); return () => clearTimeout(id); } }, [over]);
   const say = (t: string) => { setToast(t); setTimeout(() => setToast(null), 1600); };
   const preview = placed.length ? validateMove(board, placed) : null;
   const placedAt = (r: number, c: number) => placed.find((p) => p.r === r && p.c === c);
@@ -83,7 +85,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
 
   const finish = (b: Board, yourRack: string[], oppRack: string[], passCount: number) => {
     const out = (!bag.current.length && (!yourRack.length || !oppRack.length)) || passCount >= 4;
-    if (out) { setOver(true); setTimeout(() => play('win'), 400); }
+    if (out) setOver(true);
     return out;
   };
 

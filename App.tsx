@@ -11,17 +11,20 @@ import ArrowGame from './src/ArrowGame';
 import WordGame from './src/WordGame';
 import { PUZZLES } from './src/arrowPuzzles';
 import { C, F } from './src/ui';
-import { setMuted } from './src/sound';
+import { setHaptics, setMuted } from './src/sound';
 import { isUnlocked, useStars } from './src/progress';
 import HomeScreen from './src/cross/HomeScreen';
 import CrosswordScreen from './src/cross/CrosswordScreen';
 import ThemesScreen from './src/cross/ThemesScreen';
 import StatsScreen from './src/cross/StatsScreen';
-import { updateGame, useGame } from './src/cross/store';
+import { claimDailyBonus, DAILY_BONUS, ready, updateGame, useGame } from './src/cross/store';
+import SettingsScreen from './src/cross/SettingsScreen';
+import Tutorial from './src/cross/Tutorial';
+import { Toast } from './src/ui';
 import { ScreenIn } from './src/cross/motion';
 
 type Screen =
-  | { kind: 'home' } | { kind: 'play'; level: number } | { kind: 'themes' } | { kind: 'stats' }
+  | { kind: 'home' } | { kind: 'play'; level: number } | { kind: 'themes' } | { kind: 'stats' } | { kind: 'settings' }
   | { kind: 'arrowMenu' } | { kind: 'arrow'; level: number; id?: number } | { kind: 'battle'; id: number };
 
 export default function App() {
@@ -33,10 +36,22 @@ export default function App() {
   const home = () => setScreen({ kind: 'home' });
   const arrowMenu = () => setScreen({ kind: 'arrowMenu' });
   useEffect(() => { setMuted(game.muted); }, [game.muted]);
+  useEffect(() => { setHaptics(game.haptics); }, [game.haptics]);
+  const [loaded, setLoaded] = useState(false);
+  const [tutorial, setTutorial] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    ready.then(() => {
+      setLoaded(true);
+      if (claimDailyBonus()) { setToast(`Daily bonus: +${DAILY_BONUS} coins`); setTimeout(() => setToast(null), 2600); }
+    });
+  }, []);
+  const showTutorial = tutorial || (loaded && !game.seenTutorial && screen.kind === 'home');
+  const closeTutorial = () => { setTutorial(false); updateGame({ seenTutorial: true }); };
 
   if (!fontsLoaded) return <View style={[s.root, { backgroundColor: '#2F3FD6' }]} />;
 
-  const dark = screen.kind === 'home' || screen.kind === 'themes' || screen.kind === 'stats' || screen.kind === 'play';
+  const dark = screen.kind === 'home' || screen.kind === 'themes' || screen.kind === 'stats' || screen.kind === 'play' || screen.kind === 'settings';
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: dark ? '#2F3FD6' : '#fff' }]}>
@@ -50,6 +65,7 @@ export default function App() {
         onNext={() => setScreen({ kind: 'play', level: screen.level + 1 })} />}
       {screen.kind === 'themes' && <ThemesScreen onBack={home} />}
       {screen.kind === 'stats' && <StatsScreen onBack={home} />}
+      {screen.kind === 'settings' && <SettingsScreen onBack={home} onTutorial={() => setTutorial(true)} />}
 
       {(screen.kind === 'arrowMenu' || screen.kind === 'arrow' || screen.kind === 'battle') && (
         <View style={s.header}>
@@ -88,6 +104,8 @@ export default function App() {
         onNext={screen.level + 1 < PUZZLES.length ? () => setScreen({ kind: 'arrow', level: screen.level + 1 }) : undefined} />}
       {screen.kind === 'battle' && <WordGame key={screen.id} onExit={home} />}
       </ScreenIn>
+      {showTutorial && <Tutorial onDone={closeTutorial} />}
+      <Toast text={toast} />
     </SafeAreaView>
   );
 }

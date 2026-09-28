@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { cellsOf, Dir, Entry, generate, difficulty } from './generate';
-import { dayKey, getGame, HINT_COST, LEVEL_REWARD, updateGame, useGame } from './store';
+import { dayKey, getGame, HINT_COST, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
 import { themeById } from './themes';
 import { Scenery } from './Scenery';
 import { Confetti, CountUp, F, Toast } from '../ui';
@@ -136,6 +136,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     if (!target) return;
     const [r, c] = target;
     updateGame((s) => ({ coins: s.coins - HINT_COST }));
+    hintsUsed.current++;
     const next = fill.map((row) => row.slice());
     next[r][c] = solution[r][c]!;
     setLocked((l) => new Set([...l, k(r, c)]));
@@ -159,12 +160,16 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     if (open.length) goEntry(open[Math.floor(Math.random() * open.length)]);
   };
 
+  const hintsUsed = useRef(0);
+  const [reward, setReward] = useState(LEVEL_REWARD);
   const win = () => {
+    const reward = LEVEL_REWARD + (hintsUsed.current ? 0 : NO_HINT_BONUS);
+    setReward(reward);
     setWon(true);
     play('win');
     flushStats();
     updateGame((s) => ({
-      coins: s.coins + LEVEL_REWARD,
+      coins: s.coins + reward,
       solved: s.solved + 1,
       level: Math.max(s.level, level + 1),
       days: s.days.includes(dayKey()) ? s.days : [...s.days, dayKey()],
@@ -208,7 +213,9 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     return idx;
   }, [bank, bankOrder]);
 
-  const gridW = Math.min(width - 32, 440);
+  // Fit the grid to both the screen width and the space left between header and panel.
+  const [areaH, setAreaH] = useState(0);
+  const gridW = Math.min(width - 32, 440, areaH ? areaH - 16 : 440);
   const gap = 3;
   const cell = Math.floor((gridW - 8 - gap * (size - 1)) / size);
   const numbers = new Map(entries.map((e) => [k(e.row, e.col), e.num]));
@@ -236,7 +243,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
         </View>
       </View>
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)}>
         <View style={[s.board, { width: gridW, backgroundColor: t.board, padding: 4, gap }]}>
           {solution.map((row, r) => (
             <View key={r} style={{ flexDirection: 'row', gap }}>
@@ -332,10 +339,11 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
               <FadeIn delay={600} scale={0.5} y={0} duration={650}><Icon name="trophy" size={72} color="#F5B301" /></FadeIn>
             </View>
             <Text style={s.winTitle}>Level {level} complete!</Text>
+            {reward > LEVEL_REWARD && <Text style={s.noHint}>No-hint bonus +{NO_HINT_BONUS}</Text>}
             <FadeIn delay={900} y={10} style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
               <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
               <Text style={[s.coinText, { color: '#8A5A00' }]}>+</Text>
-              <WinCoins />
+              <WinCoins amount={reward} />
             </FadeIn>
             <Pressable onPress={onNext} style={s.nextBtn}>
               <Text style={s.nextText}>Next Level</Text>
@@ -351,9 +359,9 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
 }
 
 /** Coin reward rolling up from 0 once the card is in. */
-function WinCoins() {
+function WinCoins({ amount }: { amount: number }) {
   const [v, setV] = useState(0);
-  useEffect(() => { const id = setTimeout(() => setV(LEVEL_REWARD), 950); return () => clearTimeout(id); }, []);
+  useEffect(() => { const id = setTimeout(() => setV(amount), 950); return () => clearTimeout(id); }, []);
   return <CountUp value={v} style={[s.coinText, { color: '#8A5A00' }]} />;
 }
 
@@ -425,7 +433,7 @@ const s = StyleSheet.create({
   num: { position: 'absolute', top: 1, left: 3, fontFamily: F.bold },
   letter: { fontFamily: F.heavy },
   panel: { backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 12, paddingBottom: 18, paddingHorizontal: 8, gap: 12 },
-  clueRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F4FA', borderRadius: 16, marginHorizontal: 6, paddingVertical: 6 },
+  clueRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F4FA', borderRadius: 16, marginHorizontal: 6, paddingVertical: 6, alignSelf: 'center', width: '96%', maxWidth: 560 },
   arrow: { paddingHorizontal: 8 },
   clueHead: { fontFamily: F.heavy, fontSize: 16, color: '#1F2640' },
   clue: { fontFamily: F.regular, fontSize: 15, color: '#3A4257', textAlign: 'center', marginTop: -2 },
@@ -456,5 +464,6 @@ const s = StyleSheet.create({
   winTitle: { fontFamily: F.heavy, fontSize: 26, color: '#1F2640', textAlign: 'center' },
   nextBtn: { backgroundColor: '#2563EB', borderRadius: 26, paddingVertical: 14, alignSelf: 'stretch', alignItems: 'center', borderBottomWidth: 4, borderBottomColor: '#1B4DB8' },
   nextText: { color: '#fff', fontFamily: F.heavy, fontSize: 20 },
+  noHint: { fontFamily: F.bold, fontSize: 13, color: '#16A34A', marginTop: -6 },
   homeLink: { fontFamily: F.bold, color: '#6B7280', fontSize: 15 },
 });

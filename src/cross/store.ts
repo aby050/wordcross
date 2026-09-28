@@ -16,10 +16,14 @@ export type GameState = {
   days: string[]; // YYYY-MM-DD days a puzzle was solved
   muted: boolean;
   input: 'letters' | 'keyboard'; // letter bank (default) or full QWERTY
+  haptics: boolean;
+  seenTutorial: boolean;
+  bonusDay: string; // last day the daily coin bonus was claimed
 };
 
 const DEFAULT: GameState = {
   level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false, input: 'letters',
+  haptics: true, seenTutorial: false, bonusDay: '',
 };
 
 let state: GameState = DEFAULT;
@@ -63,3 +67,19 @@ export function streak(days: string[]) {
 
 export const HINT_COST = 100;
 export const LEVEL_REWARD = 50;
+export const NO_HINT_BONUS = 25; // extra for finishing a level without hints
+export const DAILY_BONUS = 100;
+
+/** Grants the daily bonus once per calendar day; returns true if it was granted now. */
+export function claimDailyBonus() {
+  if (state.bonusDay === dayKey()) return false;
+  // A brand-new player already starts with coins; the bonus begins tomorrow.
+  if (!state.bonusDay) { updateGame({ bonusDay: dayKey() }); return false; }
+  updateGame((s) => ({ coins: s.coins + DAILY_BONUS, bonusDay: dayKey() }));
+  return true;
+}
+
+/** Wipes crossword progress, stats and coins; keeps preferences. */
+export function resetProgress() {
+  updateGame((s) => ({ ...DEFAULT, theme: s.theme, muted: s.muted, input: s.input, haptics: s.haptics, seenTutorial: true, bonusDay: dayKey() }));
+}
