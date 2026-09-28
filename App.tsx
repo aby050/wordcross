@@ -4,7 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import ArrowGame from './src/ArrowGame';
 import WordGame from './src/WordGame';
 import { PUZZLES } from './src/arrowPuzzles';
-import { C } from './src/ui';
+import { C, F } from './src/ui';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFonts, Baloo2_500Medium, Baloo2_700Bold, Baloo2_800ExtraBold } from '@expo-google-fonts/baloo-2';
 import { isMuted, setMuted } from './src/sound';
 import { isUnlocked, useStars } from './src/progress';
 
@@ -15,11 +17,17 @@ export default function App() {
   const [muted, setMutedState] = useState(isMuted());
   const toggleMute = () => { setMuted(!muted); setMutedState(!muted); };
   const menu = () => setScreen({ kind: 'menu' });
+  const [fontsLoaded] = useFonts({ Baloo2_500Medium, Baloo2_700Bold, Baloo2_800ExtraBold });
   const stars = useStars();
   const total = Object.values(stars).reduce((a, b) => a + b, 0);
 
+  if (!fontsLoaded) return <View style={s.root} />;
+
   return (
     <SafeAreaView style={s.root}>
+      {screen.kind === 'menu' && (
+        <LinearGradient colors={['#E6F1FF', '#FFFFFF', '#FFF4E0']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+      )}
       <StatusBar style="dark" />
       {screen.kind !== 'menu' && (
         <View style={s.header}>
@@ -69,18 +77,18 @@ const s = StyleSheet.create({
   root: { flex: 1, userSelect: 'none', backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? 32 : 0 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   back: { fontSize: 28, color: C.ink },
-  title: { fontSize: 22, fontWeight: '800', color: C.ink },
+  title: { fontSize: 22, fontFamily: F.heavy, color: C.ink },
   menu: { alignItems: 'center', padding: 24, paddingBottom: 48, gap: 12 },
-  logo: { fontSize: 56, fontWeight: '900', color: C.ink, textAlign: 'center', lineHeight: 58, marginTop: 24 },
-  tag: { color: '#8A94A8', fontSize: 15, marginBottom: 16 },
-  section: { alignSelf: 'stretch', maxWidth: 420, fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 12 },
+  logo: { fontSize: 56, fontFamily: F.heavy, color: C.ink, textAlign: 'center', lineHeight: 58, marginTop: 24 },
+  tag: { color: '#8A94A8', fontSize: 16, fontFamily: F.regular, marginBottom: 16 },
+  section: { alignSelf: 'stretch', maxWidth: 420, fontSize: 18, fontFamily: F.heavy, color: C.ink, marginTop: 12 },
   levels: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', maxWidth: 420, alignSelf: 'stretch' },
   level: { width: 64, height: 64, borderRadius: 18, backgroundColor: C.tile, borderWidth: 1.5, borderColor: C.tileEdge, alignItems: 'center', justifyContent: 'center' },
-  levelNum: { fontSize: 28, fontWeight: '900', color: '#2B2F3A' },
+  levelNum: { fontSize: 28, fontFamily: F.heavy, color: '#2B2F3A' },
   levelStars: { fontSize: 12, color: '#E0A10E', letterSpacing: 1 },
   locked: { backgroundColor: '#EEF1F6', borderColor: '#DDE2EA' },
   levelSub: { fontSize: 11, color: '#7A6440' },
   big: { alignSelf: 'stretch', maxWidth: 420, backgroundColor: C.blue, borderRadius: 24, padding: 20 },
-  bigText: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  bigSub: { color: '#DCEBFB', marginTop: 4 },
+  bigText: { color: '#fff', fontSize: 22, fontFamily: F.heavy },
+  bigSub: { color: '#DCEBFB', fontFamily: F.regular, marginTop: 4 },
 });

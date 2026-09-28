@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View, Pressable } from 'react-native';
 import { ArrowPuzzle } from './arrowPuzzles';
-import { C, MainButton, RoundButton, ScoreBar, Toast } from './ui';
+import { C, Confetti, F, Glow, MainButton, RoundButton, ScoreBar, Toast } from './ui';
 import { DragTile, hitCell } from './drag';
 import { play } from './sound';
 import { saveStars, starsFor } from './progress';
@@ -137,7 +137,7 @@ export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
     setTray([...tray, ...back]);
     setYou((v) => v + gained);
     setFlash(hit);
-    setTimeout(() => setFlash([]), 900);
+    setTimeout(() => setFlash([]), 1500);
     const finished = next.flat().every((c) => c.locked);
     play(finished ? (you + gained >= opp ? 'win' : 'wrong') : hit.length ? 'word' : right ? 'place' : 'wrong');
     say(gained ? `+${gained}${back.length ? `  (${back.length} wrong)` : ''}` : 'Not quite!');
@@ -212,7 +212,8 @@ export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
               const bg = c.owner === 'you' ? C.blueSoft : c.owner === 'opp' ? C.green : c.locked ? C.grey : '#fff';
               return (
                 <Pressable key={k} onPress={() => tapCell(r, k)}
-                  style={[st.cell, { width: cell, height: cell, backgroundColor: lit ? '#FFE9A8' : bg }]}>
+                  style={[st.cell, { width: cell, height: cell, backgroundColor: lit ? '#FFF3CC' : bg }]}>
+                  {lit && <Glow key={flash.join()} size={cell - 6} />}
                   {c.letter && (c.locked
                     ? <Text style={[st.big, { fontSize: cell * 0.5 }]}>{c.letter}</Text>
                     : <DragTile pop letter={c.letter} size={cell - 6} disabled={turn !== 'you'}
@@ -253,6 +254,7 @@ export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
         <RoundButton icon="💡" label="Hint" badge={hints} onPress={hint} disabled={!hints || turn !== 'you'} />
       </View>
       <Toast text={toast} />
+      {done && earned > 0 && <Confetti />}
     </View>
   );
 }
@@ -260,14 +262,14 @@ export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
 const st = StyleSheet.create({
   board: { borderWidth: 2, borderColor: '#7F8EA6', backgroundColor: '#fff' },
   clue: { backgroundColor: C.clue, borderWidth: 0.5, borderColor: C.line, alignItems: 'center', justifyContent: 'center', padding: 2 },
-  clueText: { color: '#2F3A4F', textAlign: 'center', fontWeight: '600' },
+  clueText: { color: '#2F3A4F', textAlign: 'center', fontFamily: F.bold },
   arrow: { position: 'absolute', color: '#5B6F8F', fontSize: 12 },
   cell: { borderWidth: 0.5, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
-  big: { fontWeight: '800', color: '#2B2F3A' },
+  big: { fontFamily: F.heavy, color: '#2B2F3A' },
   tray: { flexDirection: 'row', gap: 12, marginTop: 22, minHeight: 64, alignItems: 'center' },
   result: { alignItems: 'center', marginTop: 12 },
   stars: { fontSize: 44, color: '#F2B01E', letterSpacing: 4 },
-  starHelp: { color: '#8A94A8', fontSize: 13 },
-  help: { color: '#8A94A8', marginTop: 8 },
+  starHelp: { color: '#8A94A8', fontSize: 14, fontFamily: F.regular },
+  help: { color: '#8A94A8', marginTop: 8, fontFamily: F.regular, fontSize: 15 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, marginTop: 'auto', marginBottom: 16, width: '100%', maxWidth: 520 },
 });

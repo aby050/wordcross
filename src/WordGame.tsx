@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Board, emptyBoard, findMove, N, newBag, Placement, PREMIUM, validateMove, VALUES } from './scrabble';
-import { C, MainButton, RoundButton, ScoreBar, Tile, Toast } from './ui';
+import { C, Confetti, F, Glow, MainButton, RoundButton, ScoreBar, Tile, Toast } from './ui';
 import { DragTile, hitCell } from './drag';
 import { play } from './sound';
 
@@ -173,11 +173,12 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
               return (
                 <Pressable key={c} onPress={() => tapCell(r, c)}
                   style={[st.cell, { width: cell, height: cell }, !l && !p && pr && { backgroundColor: PREMIUM_COLOR[pr] }]}>
-                  {l ? <Tile letter={l} value={VALUES[l]} size={cell - 2} onPress={() => tapCell(r, c)}
-                    style={recent ? { borderColor: '#F2B01E', borderWidth: 2 } : undefined} />
-                    : p ? <DragTile pop letter={p.letter} value={VALUES[p.letter]} size={cell - 2} highlight={C.blue}
+                  {l && <Tile letter={l} value={VALUES[l]} size={cell - 2} onPress={() => tapCell(r, c)}
+                    style={recent ? { borderColor: C.gold, borderWidth: 2 } : undefined} />}
+                  {l && recent && <Glow key={JSON.stringify(lastWord)} size={cell - 2} />}
+                  {!l && (p ? <DragTile pop letter={p.letter} value={VALUES[p.letter]} size={cell - 2} highlight={C.blue}
                       disabled={turn !== 'you' || over} onTap={() => tapCell(r, c)} onDrop={(x, y) => dropPlaced(p, x, y)} />
-                      : pr ? <Text style={[st.prem, { fontSize: cell * 0.3 }]}>{pr}</Text> : null}
+                      : pr ? <Text style={[st.prem, { fontSize: cell * 0.3 }]}>{pr}</Text> : null)}
                 </Pressable>
               );
             })}
@@ -207,6 +208,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
         <RoundButton icon="💡" label="Hint" badge={hints} onPress={hint} disabled={!hints || turn !== 'you' || over} />
       </View>
       <Toast text={toast} />
+      {over && you > opp && <Confetti />}
     </View>
   );
 }
@@ -214,8 +216,8 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
 const st = StyleSheet.create({
   board: { backgroundColor: '#fff', padding: 2, borderRadius: 8 },
   cell: { margin: 0, borderWidth: 1, borderColor: '#fff', backgroundColor: '#EDF0F5', borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
-  prem: { color: '#fff', fontWeight: '800' },
-  info: { color: '#8A94A8', marginTop: 10, fontWeight: '600' },
+  prem: { color: '#fff', fontFamily: F.heavy },
+  info: { color: '#8A94A8', marginTop: 10, fontFamily: F.bold },
   rack: { flexDirection: 'row', gap: 6, marginTop: 14, minHeight: 56, alignItems: 'center' },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, marginTop: 'auto', marginBottom: 16, width: '100%', maxWidth: 520 },
 });
