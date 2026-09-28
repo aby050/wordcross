@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import ArrowGame from './src/ArrowGame';
 import WordGame from './src/WordGame';
@@ -26,10 +26,15 @@ export default function App() {
         </View>
       )}
       {screen.kind === 'menu' && (
-        <View style={s.menu}>
+        <ScrollView contentContainerStyle={s.menu}>
           <Text style={s.logo}>Word{'\n'}Cross</Text>
           <Text style={s.tag}>Crosswords & word battles vs a bot</Text>
-          <Text style={s.section}>Arrow Crossword</Text>
+          <Text style={s.section}>Word Board</Text>
+          <Pressable style={s.big} onPress={() => setScreen({ kind: 'word', id: Date.now() })}>
+            <Text style={s.bigText}>Play vs Bot</Text>
+            <Text style={s.bigSub}>Make words · hit 2W / 3W · maximize your score</Text>
+          </Pressable>
+          <Text style={s.section}>Arrow Crossword · {PUZZLES.length} puzzles</Text>
           <View style={s.levels}>
             {PUZZLES.map((p, i) => (
               <Pressable key={i} style={s.level} onPress={() => setScreen({ kind: 'arrow', level: i })}>
@@ -38,12 +43,7 @@ export default function App() {
               </Pressable>
             ))}
           </View>
-          <Text style={s.section}>Word Board</Text>
-          <Pressable style={s.big} onPress={() => setScreen({ kind: 'word', id: Date.now() })}>
-            <Text style={s.bigText}>Play vs Bot</Text>
-            <Text style={s.bigSub}>Make words · hit 2W / 3W · maximize your score</Text>
-          </Pressable>
-        </View>
+        </ScrollView>
       )}
       {screen.kind === 'arrow' && <ArrowGame key={screen.level} puzzle={PUZZLES[screen.level]} onExit={menu} />}
       {screen.kind === 'word' && <WordGame key={screen.id} onExit={menu} />}
@@ -56,12 +56,12 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   back: { fontSize: 28, color: C.ink },
   title: { fontSize: 22, fontWeight: '800', color: C.ink },
-  menu: { flex: 1, alignItems: 'center', padding: 24, gap: 12 },
+  menu: { alignItems: 'center', padding: 24, paddingBottom: 48, gap: 12 },
   logo: { fontSize: 56, fontWeight: '900', color: C.ink, textAlign: 'center', lineHeight: 58, marginTop: 24 },
   tag: { color: '#8A94A8', fontSize: 15, marginBottom: 16 },
   section: { alignSelf: 'stretch', maxWidth: 420, fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 12 },
-  levels: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
-  level: { width: 76, height: 76, borderRadius: 18, backgroundColor: C.tile, borderWidth: 1.5, borderColor: C.tileEdge, alignItems: 'center', justifyContent: 'center' },
+  levels: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', maxWidth: 420, alignSelf: 'stretch' },
+  level: { width: 64, height: 64, borderRadius: 18, backgroundColor: C.tile, borderWidth: 1.5, borderColor: C.tileEdge, alignItems: 'center', justifyContent: 'center' },
   levelNum: { fontSize: 28, fontWeight: '900', color: '#2B2F3A' },
   levelSub: { fontSize: 11, color: '#7A6440' },
   big: { alignSelf: 'stretch', maxWidth: 420, backgroundColor: C.blue, borderRadius: 24, padding: 20 },
