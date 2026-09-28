@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Board, emptyBoard, findMove, N, newBag, Placement, PREMIUM, validateMove, VALUES } from './scrabble';
 import { C, MainButton, RoundButton, ScoreBar, Tile, Toast } from './ui';
+import { DragTile, hitCell } from './drag';
 
 const PREMIUM_COLOR: Record<string, string> = {
   '2L': '#F4B183', '3L': '#8E9BD1', '2W': '#EC8F80', '3W': '#6FBF83', '★': '#EC8F80',
@@ -32,14 +33,48 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
   const preview = placed.length ? validateMove(board, placed) : null;
   const placedAt = (r: number, c: number) => placed.find((p) => p.r === r && p.c === c);
 
+  const boardRef = useRef<View>(null);
+  const free = (r: number, c: number) => !board[r][c] && !placedAt(r, c);
+
+  const placeFromRack = (i: number, r: number, c: number) => {
+    if (turn !== 'you' || over || !free(r, c)) return;
+    setPlaced([...placed, { r, c, letter: rack[i] }]);
+    setRack(rack.filter((_, k) => k !== i));
+    setSel(null);
+  };
+
   const tapCell = (r: number, c: number) => {
     if (turn !== 'you' || over) return;
     const p = placedAt(r, c);
     if (p) { setPlaced(placed.filter((x) => x !== p)); setRack([...rack, p.letter]); return; }
-    if (board[r][c] || sel === null) return;
-    setPlaced([...placed, { r, c, letter: rack[sel] }]);
-    setRack(rack.filter((_, i) => i !== sel));
-    setSel(null);
+    if (sel !== null) placeFromRack(sel, r, c);
+  };
+
+  const hit = (x: number, y: number, cb: (rc: [number, number] | null) => void) =>
+    hitCell(boardRef, x, y, 2, cell, N, cb);
+
+  const dropRack = (i: number, x: number, y: number) =>
+    hit(x, y, (rc) => { if (rc) placeFromRack(i, rc[0], rc[1]); });
+
+  // A tile placed this turn: move it, or return it to the rack when dropped off the board.
+  const dropPlaced = (p: Placement, x: number, y: number) => hit(x, y, (rc) => {
+    if (rc && (rc[0] !== p.r || rc[1] !== p.c)) {
+      if (free(rc[0], rc[1])) setPlaced(placed.map((q) => (q === p ? { ...q, r: rc[0], c: rc[1] } : q)));
+    } else if (!rc) {
+      setPlaced(placed.filter((q) => q !== p)); setRack([...rack, p.letter]);
+    }
+  });
+
+  // Reorder the rack by dragging a tile along it.
+  const rackRef = useRef<View>(null);
+  const rackTile = Math.min(48, (width - 80) / 7);
+  const dropOnRack = (i: number, x: number, y: number) => {
+    rackRef.current?.measureInWindow((rx, ry, rw, rh) => {
+      if (y < ry - 20 || y > ry + rh + 20) return dropRack(i, x, y);
+      const to = Math.max(0, Math.min(rack.length - 1, Math.floor((x - rx) / (rackTile + 6))));
+      const next = rack.slice(); const [l] = next.splice(i, 1); next.splice(to, 0, l);
+      setRack(next); setSel(null);
+    });
   };
 
   const recall = () => { setRack([...rack, ...placed.map((p) => p.letter)]); setPlaced([]); };
@@ -124,7 +159,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <ScoreBar you={you} opp={opp} turn={turn} />
-      <View style={st.board}>
+      <View ref={boardRef} collapsable={false} style={st.board}>
         {board.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row' }}>
             {row.map((l, c) => {
@@ -136,8 +171,8 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
                   style={[st.cell, { width: cell, height: cell }, !l && !p && pr && { backgroundColor: PREMIUM_COLOR[pr] }]}>
                   {l ? <Tile letter={l} value={VALUES[l]} size={cell - 2} onPress={() => tapCell(r, c)}
                     style={recent ? { borderColor: '#F2B01E', borderWidth: 2 } : undefined} />
-                    : p ? <Tile letter={p.letter} value={VALUES[p.letter]} size={cell - 2} onPress={() => tapCell(r, c)}
-                      style={{ borderColor: C.blue, borderWidth: 2 }} />
+                    : p ? <DragTile letter={p.letter} value={VALUES[p.letter]} size={cell - 2} highlight={C.blue}
+                      disabled={turn !== 'you' || over} onTap={() => tapCell(r, c)} onDrop={(x, y) => dropPlaced(p, x, y)} />
                       : pr ? <Text style={[st.prem, { fontSize: cell * 0.3 }]}>{pr}</Text> : null}
                 </Pressable>
               );
@@ -151,10 +186,11 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
           : `${bag.current.length} letters left`}
       </Text>
 
-      <View style={st.rack}>
+      <View ref={rackRef} collapsable={false} style={st.rack}>
         {rack.map((l, i) => (
-          <Tile key={i} letter={l} value={VALUES[l]} size={Math.min(48, (width - 80) / 7)} selected={sel === i}
-            faded={turn !== 'you'} onPress={() => turn === 'you' && setSel(sel === i ? null : i)} />
+          <DragTile key={`${i}${l}`} letter={l} value={VALUES[l]} size={rackTile} selected={sel === i}
+            faded={turn !== 'you'} disabled={turn !== 'you' || over}
+            onTap={() => setSel(sel === i ? null : i)} onDrop={(x, y) => dropOnRack(i, x, y)} />
         ))}
       </View>
 

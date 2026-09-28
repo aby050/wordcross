@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View, Pressable } from 'react-native';
 import { ArrowPuzzle } from './arrowPuzzles';
-import { C, MainButton, RoundButton, ScoreBar, Tile, Toast } from './ui';
+import { C, MainButton, RoundButton, ScoreBar, Toast } from './ui';
+import { DragTile, hitCell } from './drag';
 
 type Cell = { letter: string | null; locked: boolean; owner?: 'you' | 'opp' };
 const TRAY = 5;
@@ -47,17 +48,45 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
 
   const say = (t: string) => { setToast(t); setTimeout(() => setToast(null), 1400); };
 
-  const tapCell = (r: number, c: number) => {
-    const cur = grid[r][c];
-    if (cur.locked || turn !== 'you') return;
+  const boardRef = useRef<View>(null);
+  const open = (r: number, c: number) => !grid[r][c].locked && !grid[r][c].letter;
+
+  const placeFromTray = (i: number, r: number, c: number) => {
+    if (turn !== 'you' || !open(r, c)) return;
     const next = grid.map((row) => row.map((x) => ({ ...x })));
-    if (cur.letter) { setTray([...tray, cur.letter]); next[r][c].letter = null; setGrid(next); return; }
-    if (sel === null) return;
-    next[r][c].letter = tray[sel];
-    setTray(tray.filter((_, i) => i !== sel));
+    next[r][c].letter = tray[i];
+    setTray(tray.filter((_, k) => k !== i));
     setSel(null);
     setGrid(next);
   };
+
+  const tapCell = (r: number, c: number) => {
+    const cur = grid[r][c];
+    if (cur.locked || turn !== 'you') return;
+    if (cur.letter) {
+      const next = grid.map((row) => row.map((x) => ({ ...x })));
+      setTray([...tray, cur.letter]); next[r][c].letter = null; setGrid(next); return;
+    }
+    if (sel !== null) placeFromTray(sel, r, c);
+  };
+
+  // Board edge = 2px border, then one clue row / column.
+  const hit = (x: number, y: number, cb: (rc: [number, number] | null) => void) =>
+    hitCell(boardRef, x, y, 2 + cell, cell, n, cb);
+
+  const dropTray = (i: number, x: number, y: number) =>
+    hit(x, y, (rc) => { if (rc) placeFromTray(i, rc[0], rc[1]); });
+
+  // A pending board tile: move to another open square, or back to the tray if dropped off the grid.
+  const dropCell = (r: number, c: number, x: number, y: number) => hit(x, y, (rc) => {
+    if (rc && rc[0] === r && rc[1] === c) return;
+    if (rc && !open(rc[0], rc[1])) return;
+    const next = grid.map((row) => row.map((v) => ({ ...v })));
+    const l = next[r][c].letter!;
+    next[r][c].letter = null;
+    if (rc) next[rc[0]][rc[1]].letter = l; else setTray([...tray, l]);
+    setGrid(next);
+  });
 
   const wordCells = () => {
     const words: { key: string; cells: [number, number][] }[] = [];
@@ -154,7 +183,7 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <ScoreBar you={you} opp={opp} turn={turn} />
-      <View style={st.board}>
+      <View ref={boardRef} collapsable={false} style={st.board}>
         <View style={{ flexDirection: 'row' }}>
           <View style={[st.clue, { width: cell, height: cell }]} />
           {puzzle.down.map((d, i) => clueBox(d, 'down', `d${i}`))}
@@ -170,7 +199,8 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
                   style={[st.cell, { width: cell, height: cell, backgroundColor: lit ? '#FFE9A8' : bg }]}>
                   {c.letter && (c.locked
                     ? <Text style={[st.big, { fontSize: cell * 0.5 }]}>{c.letter}</Text>
-                    : <Tile letter={c.letter} size={cell - 6} onPress={() => tapCell(r, k)} />)}
+                    : <DragTile letter={c.letter} size={cell - 6} disabled={turn !== 'you'}
+                      onTap={() => tapCell(r, k)} onDrop={(x, y) => dropCell(r, k, x, y)} />)}
                 </Pressable>
               );
             })}
@@ -180,11 +210,11 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
 
       <View style={st.tray}>
         {tray.map((l, i) => (
-          <Tile key={i} letter={l} size={54} selected={sel === i} faded={turn !== 'you'}
-            onPress={() => turn === 'you' && setSel(sel === i ? null : i)} />
+          <DragTile key={i} letter={l} size={54} selected={sel === i} faded={turn !== 'you'} disabled={turn !== 'you'}
+            onTap={() => setSel(sel === i ? null : i)} onDrop={(x, y) => dropTray(i, x, y)} />
         ))}
       </View>
-      <Text style={st.help}>{done ? winner : turn === 'you' ? 'Tap a tile, then a square' : 'Bot is thinking…'}</Text>
+      <Text style={st.help}>{done ? winner : turn === 'you' ? 'Drag a tile onto a square (or tap tile, then square)' : 'Bot is thinking…'}</Text>
 
       <View style={st.bar}>
         <RoundButton icon="🔀" label="Shuffle" onPress={() => setTray(shuffle(tray))} />

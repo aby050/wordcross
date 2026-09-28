@@ -49,7 +49,7 @@ export default function App() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? 32 : 0 },
+  root: { flex: 1, userSelect: 'none', backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? 32 : 0 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   back: { fontSize: 28, color: C.ink },
   title: { fontSize: 22, fontWeight: '800', color: C.ink },
