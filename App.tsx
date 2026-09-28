@@ -8,7 +8,7 @@ import { C } from './src/ui';
 import { isMuted, setMuted } from './src/sound';
 import { isUnlocked, useStars } from './src/progress';
 
-type Screen = { kind: 'menu' } | { kind: 'arrow'; level: number } | { kind: 'word'; id: number };
+type Screen = { kind: 'menu' } | { kind: 'arrow'; level: number; id?: number } | { kind: 'word'; id: number };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'menu' });
@@ -57,7 +57,8 @@ export default function App() {
           </View>
         </ScrollView>
       )}
-      {screen.kind === 'arrow' && <ArrowGame key={screen.level} level={screen.level} puzzle={PUZZLES[screen.level]} onExit={menu}
+      {screen.kind === 'arrow' && <ArrowGame key={`${screen.level}-${screen.id ?? 0}`} level={screen.level}
+        onRetry={() => setScreen({ kind: 'arrow', level: screen.level, id: Date.now() })} puzzle={PUZZLES[screen.level]} onExit={menu}
         onNext={screen.level + 1 < PUZZLES.length ? () => setScreen({ kind: 'arrow', level: screen.level + 1 }) : undefined} />}
       {screen.kind === 'word' && <WordGame key={screen.id} onExit={menu} />}
     </SafeAreaView>

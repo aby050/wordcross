@@ -15,8 +15,8 @@ function shuffle<T>(a: T[]) {
   return b;
 }
 
-export default function ArrowGame({ puzzle, level, onExit, onNext }: {
-  puzzle: ArrowPuzzle; level: number; onExit: () => void; onNext?: () => void;
+export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
+  puzzle: ArrowPuzzle; level: number; onExit: () => void; onNext?: () => void; onRetry: () => void;
 }) {
   const n = puzzle.answers.length;
   const { width } = useWindowDimensions();
@@ -234,7 +234,10 @@ export default function ArrowGame({ puzzle, level, onExit, onNext }: {
         <View style={st.result}>
           <Text style={st.stars}>{[1, 2, 3].map((i) => (i <= earned ? '★' : '☆')).join(' ')}</Text>
           <Text style={st.starHelp}>
-            {earned === 3 ? 'Perfect: beat the bot with no hints' : earned === 2 ? 'Beat the bot without hints for 3★' : 'Beat the bot for 2★'}
+            {earned === 3 ? 'Perfect: beat the bot with no hints'
+              : earned === 2 ? 'Win without hints for 3★'
+              : earned === 1 ? 'Use one hint or fewer for 2★'
+              : 'Beat the bot to unlock the next puzzle'}
           </Text>
         </View>
       )}
@@ -243,7 +246,9 @@ export default function ArrowGame({ puzzle, level, onExit, onNext }: {
       <View style={st.bar}>
         <RoundButton icon="🔀" label="Shuffle" onPress={() => setTray(shuffle(tray))} />
         {done
-          ? <MainButton label={onNext ? 'Next puzzle →' : 'Back to menu'} onPress={onNext ?? onExit} />
+          ? earned
+            ? <MainButton label={onNext ? 'Next puzzle →' : 'Back to menu'} onPress={onNext ?? onExit} />
+            : <MainButton label="Try again" onPress={onRetry} />
           : <MainButton label={pending ? 'Submit' : 'Pass'} onPress={submit} disabled={turn !== 'you'} />}
         <RoundButton icon="💡" label="Hint" badge={hints} onPress={hint} disabled={!hints || turn !== 'you'} />
       </View>

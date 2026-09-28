@@ -15,11 +15,12 @@ const loaded = AsyncStorage.getItem(KEY)
   .finally(() => listeners.forEach((l) => l(cache)));
 
 /**
- * 1★ finish the puzzle · 2★ also beat the bot · 3★ beat the bot without hints.
+ * Stars need a win (a tie doesn't count): 3★ no hints · 2★ one hint · 1★ two or more.
+ * A loss earns nothing, so it never unlocks the next level.
  */
 export function starsFor(won: boolean, hintsUsed: number) {
-  if (!won) return 1;
-  return hintsUsed === 0 ? 3 : 2;
+  if (!won) return 0;
+  return hintsUsed === 0 ? 3 : hintsUsed === 1 ? 2 : 1;
 }
 
 /** Records a result, keeping the best score for the level. */
@@ -30,7 +31,7 @@ export function saveStars(level: number, stars: number) {
   AsyncStorage.setItem(KEY, JSON.stringify(cache)).catch(() => {});
 }
 
-/** A level opens once the previous one has at least one star. */
+/** A level opens once the previous one has been won (at least one star). */
 export const isUnlocked = (stars: Stars, level: number) => level === 0 || (stars[level - 1] ?? 0) > 0;
 
 export function useStars(): Stars {
