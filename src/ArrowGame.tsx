@@ -3,6 +3,7 @@ import { StyleSheet, Text, useWindowDimensions, View, Pressable } from 'react-na
 import { ArrowPuzzle } from './arrowPuzzles';
 import { C, MainButton, RoundButton, ScoreBar, Toast } from './ui';
 import { DragTile, hitCell } from './drag';
+import { play } from './sound';
 
 type Cell = { letter: string | null; locked: boolean; owner?: 'you' | 'opp' };
 const TRAY = 5;
@@ -55,6 +56,7 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
     if (turn !== 'you' || !open(r, c)) return;
     const next = grid.map((row) => row.map((x) => ({ ...x })));
     next[r][c].letter = tray[i];
+    play('place');
     setTray(tray.filter((_, k) => k !== i));
     setSel(null);
     setGrid(next);
@@ -85,6 +87,7 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
     const l = next[r][c].letter!;
     next[r][c].letter = null;
     if (rc) next[rc[0]][rc[1]].letter = l; else setTray([...tray, l]);
+    play('place');
     setGrid(next);
   });
 
@@ -125,6 +128,8 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
     setYou((v) => v + gained);
     setFlash(hit);
     setTimeout(() => setFlash([]), 900);
+    const finished = next.flat().every((c) => c.locked);
+    play(finished ? (you + gained >= opp ? 'win' : 'wrong') : hit.length ? 'word' : right ? 'place' : 'wrong');
     say(gained ? `+${gained}${back.length ? `  (${back.length} wrong)` : ''}` : 'Not quite!');
     endTurn(next);
   };
@@ -145,6 +150,7 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
     }
     const { pts } = lockCompleted(next, 'opp');
     setOpp((v) => v + count + pts);
+    play(next.flat().every((c) => c.locked) ? (you >= opp + count + pts ? 'win' : 'wrong') : 'bot');
     setGrid(next);
     // Drop tray letters the bot just used up.
     setTray((t) => {
@@ -199,7 +205,7 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
                   style={[st.cell, { width: cell, height: cell, backgroundColor: lit ? '#FFE9A8' : bg }]}>
                   {c.letter && (c.locked
                     ? <Text style={[st.big, { fontSize: cell * 0.5 }]}>{c.letter}</Text>
-                    : <DragTile letter={c.letter} size={cell - 6} disabled={turn !== 'you'}
+                    : <DragTile pop letter={c.letter} size={cell - 6} disabled={turn !== 'you'}
                       onTap={() => tapCell(r, k)} onDrop={(x, y) => dropCell(r, k, x, y)} />)}
                 </Pressable>
               );

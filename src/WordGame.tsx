@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-na
 import { Board, emptyBoard, findMove, N, newBag, Placement, PREMIUM, validateMove, VALUES } from './scrabble';
 import { C, MainButton, RoundButton, ScoreBar, Tile, Toast } from './ui';
 import { DragTile, hitCell } from './drag';
+import { play } from './sound';
 
 const PREMIUM_COLOR: Record<string, string> = {
   '2L': '#F4B183', '3L': '#8E9BD1', '2W': '#EC8F80', '3W': '#6FBF83', '★': '#EC8F80',
@@ -39,6 +40,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
   const placeFromRack = (i: number, r: number, c: number) => {
     if (turn !== 'you' || over || !free(r, c)) return;
     setPlaced([...placed, { r, c, letter: rack[i] }]);
+    play('place');
     setRack(rack.filter((_, k) => k !== i));
     setSel(null);
   };
@@ -59,9 +61,9 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
   // A tile placed this turn: move it, or return it to the rack when dropped off the board.
   const dropPlaced = (p: Placement, x: number, y: number) => hit(x, y, (rc) => {
     if (rc && (rc[0] !== p.r || rc[1] !== p.c)) {
-      if (free(rc[0], rc[1])) setPlaced(placed.map((q) => (q === p ? { ...q, r: rc[0], c: rc[1] } : q)));
+      if (free(rc[0], rc[1])) { setPlaced(placed.map((q) => (q === p ? { ...q, r: rc[0], c: rc[1] } : q))); play('place'); }
     } else if (!rc) {
-      setPlaced(placed.filter((q) => q !== p)); setRack([...rack, p.letter]);
+      setPlaced(placed.filter((q) => q !== p)); setRack([...rack, p.letter]); play('place');
     }
   });
 
@@ -81,7 +83,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
 
   const finish = (b: Board, yourRack: string[], oppRack: string[], passCount: number) => {
     const out = (!bag.current.length && (!yourRack.length || !oppRack.length)) || passCount >= 4;
-    if (out) setOver(true);
+    if (out) { setOver(true); setTimeout(() => play('win'), 400); }
     return out;
   };
 
@@ -94,7 +96,8 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
       return;
     }
     const res = validateMove(board, placed);
-    if (!res.ok) { say(res.error); return; }
+    if (!res.ok) { say(res.error); play('wrong'); return; }
+    play('word');
     const next = board.map((row) => row.slice());
     placed.forEach((p) => { next[p.r][p.c] = p.letter; });
     const newRack = draw(rack);
@@ -127,6 +130,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
       setBoard(next); setBotRack(nr); setLastWord(move.placed);
       setOpp((v) => v + move.score); setPasses(0);
       say(`Bot +${move.score}`);
+      play('bot');
       setTurn('you');
       finish(next, yr, nr, 0);
     }, 700);
@@ -171,7 +175,7 @@ export default function WordGame({ onExit }: { onExit: () => void }) {
                   style={[st.cell, { width: cell, height: cell }, !l && !p && pr && { backgroundColor: PREMIUM_COLOR[pr] }]}>
                   {l ? <Tile letter={l} value={VALUES[l]} size={cell - 2} onPress={() => tapCell(r, c)}
                     style={recent ? { borderColor: '#F2B01E', borderWidth: 2 } : undefined} />
-                    : p ? <DragTile letter={p.letter} value={VALUES[p.letter]} size={cell - 2} highlight={C.blue}
+                    : p ? <DragTile pop letter={p.letter} value={VALUES[p.letter]} size={cell - 2} highlight={C.blue}
                       disabled={turn !== 'you' || over} onTap={() => tapCell(r, c)} onDrop={(x, y) => dropPlaced(p, x, y)} />
                       : pr ? <Text style={[st.prem, { fontSize: cell * 0.3 }]}>{pr}</Text> : null}
                 </Pressable>

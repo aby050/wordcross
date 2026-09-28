@@ -5,11 +5,14 @@ import ArrowGame from './src/ArrowGame';
 import WordGame from './src/WordGame';
 import { PUZZLES } from './src/arrowPuzzles';
 import { C } from './src/ui';
+import { isMuted, setMuted } from './src/sound';
 
 type Screen = { kind: 'menu' } | { kind: 'arrow'; level: number } | { kind: 'word'; id: number };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'menu' });
+  const [muted, setMutedState] = useState(isMuted());
+  const toggleMute = () => { setMuted(!muted); setMutedState(!muted); };
   const menu = () => setScreen({ kind: 'menu' });
 
   return (
@@ -19,7 +22,7 @@ export default function App() {
         <View style={s.header}>
           <Pressable onPress={menu} hitSlop={12}><Text style={s.back}>←</Text></Pressable>
           <Text style={s.title}>{screen.kind === 'arrow' ? `Crossword ${screen.level + 1}` : 'Word Board'}</Text>
-          <View style={{ width: 28 }} />
+          <Pressable onPress={toggleMute} hitSlop={12}><Text style={{ fontSize: 22 }}>{muted ? '🔇' : '🔊'}</Text></Pressable>
         </View>
       )}
       {screen.kind === 'menu' && (
