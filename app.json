@@ -1,0 +1,3 @@
+{ "expo": { "name": "WordCross", "slug": "wordcross", "version": "1.0.0", "orientation": "portrait",
+  "userInterfaceStyle": "light", "ios": { "supportsTablet": true, "bundleIdentifier": "com.aby050.wordcross" },
+  "android": { "package": "com.aby050.wordcross" }, "web": { "bundler": "metro" } } }
