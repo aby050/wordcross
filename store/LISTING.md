@@ -79,4 +79,4 @@ Phone (1080×1920 or larger) and 6.7"/6.5" iPhone:
 4. Statistics calendar: "Boost Your Brain"
 5. Level complete card: "Relax and Enjoy"
 
-A 12.9" iPad set is also required while `supportsTablet` is on.
+No iPad screenshots are needed: iPad support is off for 1.0 (`supportsTablet: false`).
