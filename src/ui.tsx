@@ -52,17 +52,12 @@ export function Tile({ letter, value, size, selected, faded, onPress, style }: {
 export function CountUp({ value, style }: { value: number; style: any }) {
   const anim = useRef(new Animated.Value(value)).current;
   const [shown, setShown] = useState(value);
-  const bump = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const id = anim.addListener(({ value: v }) => setShown(Math.round(v)));
     Animated.timing(anim, { toValue: value, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    if (value !== shown) Animated.sequence([
-      Animated.timing(bump, { toValue: 1.25, duration: 140, useNativeDriver: false }),
-      Animated.spring(bump, { toValue: 1, friction: 4, useNativeDriver: false }),
-    ]).start();
     return () => anim.removeListener(id);
   }, [value]);
-  return <Animated.Text style={[style, { transform: [{ scale: bump }] }]}>{shown}</Animated.Text>;
+  return <Text style={style}>{shown}</Text>;
 }
 
 export function ScoreBar({ you, opp, turn }: { you: number; opp: number; turn: 'you' | 'opp' }) {
@@ -81,15 +76,13 @@ export function ScoreBar({ you, opp, turn }: { you: number; opp: number; turn: '
   );
 }
 
-/** A golden halo that pulses twice when mounted — key it by the move so it re-fires. */
+/** A golden halo that fades in and out once when mounted — key it by the move so it re-fires. */
 export function Glow({ size, radius = 6 }: { size: number; radius?: number }) {
   const a = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(a, { toValue: 1, duration: 220, useNativeDriver: false }),
-      Animated.timing(a, { toValue: 0.35, duration: 260, useNativeDriver: false }),
-      Animated.timing(a, { toValue: 1, duration: 220, useNativeDriver: false }),
-      Animated.timing(a, { toValue: 0, duration: 700, useNativeDriver: false }),
+      Animated.timing(a, { toValue: 1, duration: 200, useNativeDriver: false }),
+      Animated.timing(a, { toValue: 0, duration: 900, delay: 300, easing: Easing.out(Easing.quad), useNativeDriver: false }),
     ]).start();
   }, []);
   return (

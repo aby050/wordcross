@@ -185,14 +185,19 @@ export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
     setHints(hints - 1);
   };
 
-  const clueBox = (text: string, arrow: 'right' | 'down', key: string) => (
-    <View key={key} style={[st.clue, { width: cell, height: cell }]}>
-      <Text numberOfLines={3} adjustsFontSizeToFit style={[st.clueText, { fontSize: Math.max(8, cell * 0.14) }]}>{text}</Text>
+  const clueBox = (text: string, arrow: 'right' | 'down', key: string) => {
+    const pic = puzzle.pics?.[key];
+    return (
+    <View key={key} accessibilityLabel={text} style={[st.clue, { width: cell, height: cell }, pic && st.picClue]}>
+      {pic
+        ? <Text style={{ fontSize: cell * 0.5, lineHeight: cell * 0.66 }}>{pic}</Text>
+        : <Text numberOfLines={3} adjustsFontSizeToFit style={[st.clueText, { fontSize: Math.max(8, cell * 0.14) }]}>{text}</Text>}
       <Text style={[st.arrow, arrow === 'right' ? { right: 1, top: cell / 2 - 7 } : { bottom: -2, alignSelf: 'center' }]}>
         {arrow === 'right' ? '▸' : '▾'}
       </Text>
     </View>
-  );
+    );
+  };
 
   const winner = you === opp ? "It's a tie!" : you > opp ? 'You win! 🎉' : 'Bot wins';
 
@@ -262,6 +267,7 @@ export default function ArrowGame({ puzzle, level, onExit, onNext, onRetry }: {
 const st = StyleSheet.create({
   board: { borderWidth: 2, borderColor: '#7F8EA6', backgroundColor: '#fff' },
   clue: { backgroundColor: C.clue, borderWidth: 0.5, borderColor: C.line, alignItems: 'center', justifyContent: 'center', padding: 2 },
+  picClue: { backgroundColor: '#E8F1FB' },
   clueText: { color: '#2F3A4F', textAlign: 'center', fontFamily: F.bold },
   arrow: { position: 'absolute', color: '#5B6F8F', fontSize: 12 },
   cell: { borderWidth: 0.5, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },

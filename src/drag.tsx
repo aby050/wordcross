@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, RefObject } from 'react';
-import { Animated, PanResponder, View } from 'react-native';
+import { Animated, Easing, PanResponder, View } from 'react-native';
 import { Tile } from './ui';
 import { play } from './sound';
 
@@ -9,7 +9,7 @@ const webNoSelect = { userSelect: 'none', cursor: 'grab' };
 type Props = {
   letter: string; value?: number; size: number; selected?: boolean; faded?: boolean;
   disabled?: boolean; highlight?: string;
-  /** Bounce in on mount — used for tiles that just landed on the board. */
+  /** Settle in on mount — used for tiles that just landed on the board. */
   pop?: boolean;
   onTap?: () => void;
   /** Called with the finger's window coordinates when a drag ends. */
@@ -19,13 +19,15 @@ type Props = {
 /** A tile that can be tapped or dragged. Built on PanResponder so it works on iOS, Android and web. */
 export function DragTile({ disabled, onTap, onDrop, highlight, pop, ...tile }: Props) {
   const pan = useRef(new Animated.ValueXY()).current;
-  const scale = useRef(new Animated.Value(pop ? 1.35 : 1)).current;
+  // Quick ease-out everywhere: tiles settle, never bounce or overshoot.
+  const ease = { easing: Easing.out(Easing.cubic), useNativeDriver: false };
+  const scale = useRef(new Animated.Value(pop ? 1.08 : 1)).current;
   useEffect(() => {
-    if (pop) Animated.spring(scale, { toValue: 1, friction: 4, tension: 180, useNativeDriver: false }).start();
+    if (pop) Animated.timing(scale, { toValue: 1, duration: 120, ...ease }).start();
   }, []);
   // Missed drops glide back home instead of teleporting.
-  const home = () => Animated.spring(pan, { toValue: { x: 0, y: 0 }, friction: 6, tension: 120, useNativeDriver: false }).start();
-  const lift = (up: boolean) => Animated.spring(scale, { toValue: up ? 1.18 : 1, friction: 5, useNativeDriver: false }).start();
+  const home = () => Animated.timing(pan, { toValue: { x: 0, y: 0 }, duration: 180, ...ease }).start();
+  const lift = (up: boolean) => Animated.timing(scale, { toValue: up ? 1.1 : 1, duration: 100, ...ease }).start();
   const [dragging, setDragging] = useState(false);
   const cb = useRef({ onTap, onDrop, disabled });
   cb.current = { onTap, onDrop, disabled };
