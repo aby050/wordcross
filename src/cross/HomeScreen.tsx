@@ -4,7 +4,7 @@ import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { streak, updateGame, useGame } from './store';
 import { F } from '../ui';
 import { Scenery } from './Scenery';
-import { FadeIn, Float, Shimmer } from './motion';
+import { FadeIn, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
 
 export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle';
@@ -25,9 +25,10 @@ function Logo() {
     <View style={{ width: 5 * (T + G), height: 4 * (T + G), transform: [{ rotate: '-8deg' }] }}>
       {[...'CROSS'].map((l, i) => tile(l, i, 1, i === 2))}
       {[...'WRD'].map((l, i) => tile(l, 2, i === 0 ? 0 : i + 1))}
-      <Text style={[s.spark, { left: -18, top: 6 }]}>✦</Text>
-      <Text style={[s.spark, { right: 10, top: -8, fontSize: 22 }]}>✦</Text>
-      <Text style={[s.spark, { right: -16, bottom: 10 }]}>✦</Text>
+      {/* The tiles stay put; only the sparkles twinkle, each on its own rhythm. */}
+      <Twinkle delay={0} period={2400} style={{ position: 'absolute', left: -18, top: 6 }}><Text style={s.spark}>✦</Text></Twinkle>
+      <Twinkle delay={900} period={3100} style={{ position: 'absolute', right: 10, top: -8 }}><Text style={[s.spark, { fontSize: 22 }]}>✦</Text></Twinkle>
+      <Twinkle delay={1600} period={2700} style={{ position: 'absolute', right: -16, bottom: 10 }}><Text style={s.spark}>✦</Text></Twinkle>
     </View>
   );
 }
@@ -60,7 +61,7 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
         </FadeIn>
         <FadeIn delay={240} y={12}><Text style={s.tag}>Train your brain anytime, anywhere!</Text></FadeIn>
 
-        <Float style={{ marginVertical: 26 }} range={5} period={4200}><Logo /></Float>
+        <View style={{ marginVertical: 26 }}><Logo /></View>
 
         <FadeIn delay={700} y={24} style={{ width: '100%', maxWidth: 360 }}>
         <Pressable onPress={() => go('play')} style={({ pressed }) => [s.play, pressed && { transform: [{ scale: 0.98 }] }]}>
@@ -122,7 +123,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 4, borderBottomColor: '#C9CFEA', shadowColor: '#0B1060', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   goldTile: { backgroundColor: '#FFCB2E', borderBottomColor: '#D99A00' },
   tileText: { fontFamily: F.heavy, fontSize: 28, color: '#1F2A6B', lineHeight: 36 },
-  spark: { position: 'absolute', color: '#FFE14D', fontSize: 28 },
+  spark: { color: '#FFE14D', fontSize: 28 },
   play: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, height: 72, width: '100%', maxWidth: 360, borderRadius: 30,
     overflow: 'hidden', borderBottomWidth: 5, borderBottomColor: '#C98300', shadowColor: '#10136B', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   playText: { fontFamily: F.heavy, fontSize: 28, color: '#5A3500', lineHeight: 32 },

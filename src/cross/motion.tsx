@@ -49,6 +49,30 @@ export function Float({ children, range = 6, period = 3200, style }: { children:
   );
 }
 
+/** Sparkle that glints: brightens, grows a touch and turns, then rests. */
+export function Twinkle({ children, delay = 0, period = 2600, style }: { children: ReactNode; delay?: number; period?: number; style?: ViewStyle }) {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(a, { toValue: 1, duration: period * 0.35, easing: Easing.out(Easing.quad), useNativeDriver: native }),
+      Animated.timing(a, { toValue: 0, duration: period * 0.45, easing: Easing.inOut(Easing.quad), useNativeDriver: native }),
+      Animated.delay(period * 0.2),
+    ]));
+    const id = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(id); loop.stop(); };
+  }, []);
+  return (
+    <Animated.View pointerEvents="none" style={[style, {
+      opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }),
+      transform: [
+        { scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.15] }) },
+        { rotate: a.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) },
+      ],
+    }]}>{children}</Animated.View>
+  );
+}
+
 /** A soft band of light that sweeps across its parent every few seconds. Parent needs overflow: hidden. */
 export function Shimmer({ width = 360, every = 3200 }: { width?: number; every?: number }) {
   const a = useRef(new Animated.Value(0)).current;
