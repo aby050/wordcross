@@ -18,6 +18,7 @@ import CrosswordScreen from './src/cross/CrosswordScreen';
 import ThemesScreen from './src/cross/ThemesScreen';
 import StatsScreen from './src/cross/StatsScreen';
 import { updateGame, useGame } from './src/cross/store';
+import { ScreenIn } from './src/cross/motion';
 
 type Screen =
   | { kind: 'home' } | { kind: 'play'; level: number } | { kind: 'themes' } | { kind: 'stats' }
@@ -41,6 +42,7 @@ export default function App() {
     <SafeAreaView style={[s.root, { backgroundColor: dark ? '#2F3FD6' : '#fff' }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
 
+      <ScreenIn key={`${screen.kind}-${'level' in screen ? screen.level : ''}-${'id' in screen ? screen.id : ''}`}>
       {screen.kind === 'home' && <HomeScreen go={(n) => setScreen(
         n === 'play' ? { kind: 'play', level: game.level } : n === 'arrow' ? { kind: 'arrowMenu' }
           : n === 'battle' ? { kind: 'battle', id: Date.now() } : { kind: n })} />}
@@ -85,6 +87,7 @@ export default function App() {
         onRetry={() => setScreen({ kind: 'arrow', level: screen.level, id: Date.now() })} puzzle={PUZZLES[screen.level]} onExit={arrowMenu}
         onNext={screen.level + 1 < PUZZLES.length ? () => setScreen({ kind: 'arrow', level: screen.level + 1 }) : undefined} />}
       {screen.kind === 'battle' && <WordGame key={screen.id} onExit={home} />}
+      </ScreenIn>
     </SafeAreaView>
   );
 }

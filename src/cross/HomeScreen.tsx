@@ -3,16 +3,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { streak, updateGame, useGame } from './store';
 import { F } from '../ui';
+import { Scenery } from './Scenery';
+import { FadeIn, Float, Shimmer } from './motion';
+import { THEMES } from './themes';
 
 export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle';
 
 /** The crossed WORD / CROSS tile logo; the shared O is the gold tile. */
 function Logo() {
   const T = 46, G = 5;
+  let order = 0;
   const tile = (l: string, x: number, y: number, gold = false) => (
-    <View key={`${l}${x}${y}`} style={[s.tile, { left: x * (T + G), top: y * (T + G), width: T, height: T }, gold && s.goldTile]}>
-      <Text style={[s.tileText, gold && { color: '#8A4B00' }]}>{l}</Text>
-    </View>
+    <FadeIn key={`${l}${x}${y}`} delay={350 + order++ * 70} y={-26} duration={600}
+      style={{ position: 'absolute', left: x * (T + G), top: y * (T + G) }}>
+      <View style={[s.tile, { position: 'relative', width: T, height: T }, gold && s.goldTile]}>
+        <Text style={[s.tileText, gold && { color: '#8A4B00' }]}>{l}</Text>
+      </View>
+    </FadeIn>
   );
   return (
     <View style={{ width: 5 * (T + G), height: 4 * (T + G), transform: [{ rotate: '-8deg' }] }}>
@@ -30,9 +37,11 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
   const days = streak(g.days);
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient colors={['#4F6BFF', '#2F3FD6', '#2A2FB0']} style={StyleSheet.absoluteFill} />
+      <Scenery theme={g.theme} />
+      <LinearGradient colors={['rgba(47,63,214,0.92)', 'rgba(47,63,214,0.55)', 'rgba(20,24,90,0.25)', 'rgba(20,24,90,0.6)']}
+        locations={[0, 0.35, 0.65, 1]} style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={s.wrap}>
-        <View style={s.topRow}>
+        <FadeIn delay={0} y={-10} style={s.topRow}>
           <View style={s.chip}><Icon name="fire" size={18} color="#FF8A3D" /><Text style={s.chipText}>{days} day{days === 1 ? '' : 's'}</Text></View>
           <Pressable onPress={() => updateGame({ muted: !g.muted })} hitSlop={10} style={s.chip}>
             <Icon name={g.muted ? 'volume-off' : 'volume-high'} size={18} color="#fff" />
@@ -41,38 +50,49 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
             <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
             <Text style={s.chipText}>{g.coins}</Text>
           </View>
-        </View>
+        </FadeIn>
 
-        <Text style={s.title1}>Crossword</Text>
-        <Text style={s.title2}>Puzzle Fun</Text>
-        <Text style={s.tag}>Train your brain anytime, anywhere!</Text>
+        <FadeIn delay={80} y={20} style={{ alignItems: 'center' }}>
+          <Text style={s.title1}>Crossword</Text>
+        </FadeIn>
+        <FadeIn delay={160} y={20} style={{ alignItems: 'center' }}>
+          <Text style={s.title2}>Puzzle Fun</Text>
+        </FadeIn>
+        <FadeIn delay={240} y={12}><Text style={s.tag}>Train your brain anytime, anywhere!</Text></FadeIn>
 
-        <View style={{ marginVertical: 26 }}><Logo /></View>
+        <Float style={{ marginVertical: 26 }} range={5} period={4200}><Logo /></Float>
 
-        <Pressable onPress={() => go('play')} style={({ pressed }) => [s.play, pressed && { transform: [{ translateY: 2 }] }]}>
+        <FadeIn delay={700} y={24} style={{ width: '100%', maxWidth: 360 }}>
+        <Pressable onPress={() => go('play')} style={({ pressed }) => [s.play, pressed && { transform: [{ scale: 0.98 }] }]}>
           <LinearGradient colors={['#FFE45C', '#FFC928', '#F5A900']} style={[StyleSheet.absoluteFill, { borderRadius: 30 }]} />
           <Icon name="play" size={30} color="#5A3500" />
           <View>
             <Text style={s.playText}>Play</Text>
             <Text style={s.playSub}>Level {g.level}</Text>
           </View>
+          <Shimmer width={380} />
         </Pressable>
+        </FadeIn>
 
         <View style={s.grid}>
-          <Card icon="palette" color="#EC4899" title="Themes" sub="6 styles" onPress={() => go('themes')} />
-          <Card icon="chart-bar" color="#22C55E" title="Statistics" sub={`${g.solved} solved`} onPress={() => go('stats')} />
-          <Card icon="arrow-decision" color="#F59E0B" title="Arrow Puzzles" sub="Picture clues" onPress={() => go('arrow')} />
-          <Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} />
+          <CardIn i={0}><Card icon="palette" color="#EC4899" title="Themes" sub={`${THEMES.length} styles`} onPress={() => go('themes')} /></CardIn>
+          <CardIn i={1}><Card icon="chart-bar" color="#22C55E" title="Statistics" sub={`${g.solved} solved`} onPress={() => go('stats')} /></CardIn>
+          <CardIn i={2}><Card icon="arrow-decision" color="#F59E0B" title="Arrow Puzzles" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
+          <CardIn i={3}><Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} /></CardIn>
         </View>
 
-        <View style={s.trophy}>
+        <FadeIn delay={1150} y={16}><View style={s.trophy}>
           <Icon name="trophy" size={34} color="#F5B301" />
-          <Text style={s.trophyText}>1000+ Puzzles · Easy to Hard</Text>
-        </View>
+          <Text style={s.trophyText}>1000+ Puzzles · 2,000+ words</Text>
+        </View></FadeIn>
       </ScrollView>
     </View>
   );
 }
+
+const CardIn = ({ i, children }: { i: number; children: React.ReactNode }) => (
+  <FadeIn delay={850 + i * 80} y={18} style={{ flexBasis: '47%', flexGrow: 1 }}>{children}</FadeIn>
+);
 
 function Card({ icon, color, title, sub, onPress }: { icon: any; color: string; title: string; sub: string; onPress: () => void }) {
   return (
@@ -108,7 +128,7 @@ const s = StyleSheet.create({
   playText: { fontFamily: F.heavy, fontSize: 28, color: '#5A3500', lineHeight: 32 },
   playSub: { fontFamily: F.bold, fontSize: 14, color: '#7A4B00', marginTop: -4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 22, maxWidth: 440, width: '100%' },
-  card: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 12,
+  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 12,
     shadowColor: '#10136B', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   cardIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontFamily: F.heavy, fontSize: 15, color: '#1F2640', lineHeight: 19 },

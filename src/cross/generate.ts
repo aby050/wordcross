@@ -19,8 +19,8 @@ function rng(seed: number) {
 /** Grid size and word count grow with the level: easy → hard. */
 export function difficulty(level: number) {
   if (level <= 20) return { size: 6, words: 5, maxLen: 5, label: 'Easy' };
-  if (level <= 100) return { size: 7, words: 7, maxLen: 6, label: 'Medium' };
-  return { size: 8, words: 9, maxLen: 6, label: 'Hard' };
+  if (level <= 100) return { size: 7, words: 8, maxLen: 7, label: 'Medium' };
+  return { size: 8, words: 11, maxLen: 8, label: 'Hard' };
 }
 
 type Placed = { word: string; clue: string; row: number; col: number; dir: Dir };

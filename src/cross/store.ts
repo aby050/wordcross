@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 const KEY = 'wordcross.game.v1';
 
-export type ThemeId = 'classic' | 'blossom' | 'forest' | 'ocean' | 'night' | 'paper';
+export type ThemeId = 'classic' | 'blossom' | 'forest' | 'ocean' | 'night' | 'paper' | 'autumn';
 
 export type GameState = {
   level: number; // next level to play
@@ -15,10 +15,11 @@ export type GameState = {
   theme: ThemeId;
   days: string[]; // YYYY-MM-DD days a puzzle was solved
   muted: boolean;
+  input: 'letters' | 'keyboard'; // letter bank (default) or full QWERTY
 };
 
 const DEFAULT: GameState = {
-  level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false,
+  level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false, input: 'letters',
 };
 
 let state: GameState = DEFAULT;

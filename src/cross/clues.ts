@@ -1,4 +1,12 @@
 // Word bank for generated crosswords: ANSWER|clue. Easy, everyday vocabulary.
+import nature from './bank/nature';
+import home from './bank/home';
+import people from './bank/people';
+import activity from './bank/activity';
+import things from './bank/things';
+import verbs from './bank/verbs';
+import describe from './bank/describe';
+
 const RAW = `
 ACE|Top card in a suit
 ACT|Perform on stage
@@ -287,7 +295,17 @@ WINTER|Coldest season
 WIZARD|Magic user
 `;
 
-export const CLUES: { word: string; clue: string }[] = RAW.trim().split('\n').map((l) => {
-  const [word, clue] = l.split('|');
-  return { word, clue };
-});
+/** Every ANSWER|clue line, deduplicated (first clue wins), 3-8 letters so it fits the grids. */
+export const CLUES: { word: string; clue: string }[] = (() => {
+  const seen = new Set<string>();
+  const out: { word: string; clue: string }[] = [];
+  for (const block of [RAW, nature, home, people, activity, things, verbs, describe]) {
+    for (const line of block.trim().split('\n')) {
+      const [word, clue] = line.split('|');
+      if (!clue || !/^[A-Z]{3,8}$/.test(word) || seen.has(word)) continue;
+      seen.add(word);
+      out.push({ word, clue: clue.trim() });
+    }
+  }
+  return out;
+})();

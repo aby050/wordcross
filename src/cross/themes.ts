@@ -12,19 +12,22 @@ export type Theme = {
   label: string; // name colour on the picker card
 };
 
+// Boards are translucent so each theme's scenery shows through behind the grid.
 export const THEMES: Theme[] = [
-  { id: 'classic', name: 'Classic', bg: ['#1C2340', '#0E1326'], board: '#0B0F1E', cell: '#FFFFFF', cellText: '#101426', number: '#6B7280',
-    word: '#DCE6FF', selected: '#F7D23E', wrong: '#E5484D', headerText: '#FFFFFF', label: '#101426' },
-  { id: 'blossom', name: 'Blossom', bg: ['#FFE3EC', '#FFC7D9'], board: '#F7A8C0', cell: '#FFF7FA', cellText: '#6B2340', number: '#C2728F',
+  { id: 'classic', name: 'Classic', bg: ['#3B2F7A', '#5E4A8A'], board: 'rgba(18,14,44,0.72)', cell: '#FFFFFF', cellText: '#1A1640', number: '#6B7280',
+    word: '#DCE3FF', selected: '#F7D23E', wrong: '#E5484D', headerText: '#FFFFFF', label: '#3B2F7A' },
+  { id: 'forest', name: 'Nature', bg: ['#4E9E62', '#1F5A36'], board: 'rgba(10,40,22,0.7)', cell: '#F1F8EC', cellText: '#163A25', number: '#5E7D69',
+    word: '#CFE8C3', selected: '#A6E07A', wrong: '#E0564B', headerText: '#FFFFFF', label: '#1F6B3A' },
+  { id: 'blossom', name: 'Blossom', bg: ['#FFD6E4', '#FFC2D6'], board: 'rgba(214,92,136,0.55)', cell: '#FFF7FA', cellText: '#6B2340', number: '#C2728F',
     word: '#FFDCE7', selected: '#FF8FB1', wrong: '#D93A5E', headerText: '#6B2340', label: '#D9467A' },
-  { id: 'forest', name: 'Forest', bg: ['#1F4D33', '#12301F'], board: '#0E2518', cell: '#EEF6E9', cellText: '#163A25', number: '#5E7D69',
-    word: '#CFE8C3', selected: '#9BD46C', wrong: '#E0564B', headerText: '#F0FFF2', label: '#1F4D33' },
-  { id: 'ocean', name: 'Ocean', bg: ['#3AA8F0', '#1767C9'], board: '#0F4E9C', cell: '#F2FAFF', cellText: '#0B3A6E', number: '#5B86B3',
+  { id: 'ocean', name: 'Ocean', bg: ['#5FD0F5', '#0B4E9C'], board: 'rgba(6,50,110,0.6)', cell: '#F2FAFF', cellText: '#0B3A6E', number: '#5B86B3',
     word: '#CDEBFF', selected: '#5CD3F5', wrong: '#E5484D', headerText: '#FFFFFF', label: '#1767C9' },
-  { id: 'night', name: 'Night', bg: ['#2A2566', '#110E33'], board: '#0C0A26', cell: '#E9E7FF', cellText: '#1E1A4D', number: '#7C77B8',
-    word: '#C9C4FF', selected: '#FFC857', wrong: '#FF6B6B', headerText: '#FFFFFF', label: '#1E1A4D' },
-  { id: 'paper', name: 'Paper', bg: ['#F4EBDD', '#E8D9C0'], board: '#B89B74', cell: '#FFFBF3', cellText: '#4A3A24', number: '#9C8665',
-    word: '#F1E2C8', selected: '#E3B96B', wrong: '#C4473A', headerText: '#4A3A24', label: '#4A3A24' },
+  { id: 'night', name: 'Night', bg: ['#0B0930', '#3B2F8F'], board: 'rgba(8,6,32,0.7)', cell: '#E9E7FF', cellText: '#1E1A4D', number: '#7C77B8',
+    word: '#C9C4FF', selected: '#FFC857', wrong: '#FF6B6B', headerText: '#FFFFFF', label: '#2A2566' },
+  { id: 'autumn', name: 'Autumn', bg: ['#FFB35C', '#B8452A'], board: 'rgba(90,30,12,0.62)', cell: '#FFF6EC', cellText: '#5A2A14', number: '#B0714A',
+    word: '#FFE0C2', selected: '#FFB347', wrong: '#C4302B', headerText: '#FFFFFF', label: '#C8562D' },
+  { id: 'paper', name: 'Wood', bg: ['#C79A6B', '#A87B4F'], board: 'rgba(70,42,20,0.6)', cell: '#FFFBF3', cellText: '#4A3A24', number: '#9C8665',
+    word: '#F1E2C8', selected: '#E3B96B', wrong: '#C4473A', headerText: '#FFFFFF', label: '#6E4A2A' },
 ];
 
 export const themeById = (id: ThemeId) => THEMES.find((t) => t.id === id) ?? THEMES[0];

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { dayKey, streak, useGame } from './store';
-import { F } from '../ui';
+import { CountUp, F } from '../ui';
+import { FadeIn } from './motion';
 
 const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -33,11 +34,11 @@ export default function StatsScreen({ onBack }: { onBack: () => void }) {
         <View style={{ width: 26 }} />
       </View>
       <ScrollView contentContainerStyle={s.wrap}>
-        <View style={s.sheet}>
+        <FadeIn y={30} duration={600} style={s.sheet}>
           <View style={s.tiles}>
-            <Tile bg="#FFF1DC" fg="#E07A00" icon="trophy" value={`${g.solved}`} label="Puzzles Solved" />
-            <Tile bg="#EFE9FF" fg="#7C4DFF" icon="clock-outline" value={playTime(g.playSeconds)} label="Play Time" />
-            <Tile bg="#E3F8EA" fg="#16A34A" icon="chart-bar" value={`${accuracy}%`} label="Accuracy" />
+            <Tile i={0} bg="#FFF1DC" fg="#E07A00" icon="trophy" num={g.solved} label="Puzzles Solved" />
+            <Tile i={1} bg="#EFE9FF" fg="#7C4DFF" icon="clock-outline" value={playTime(g.playSeconds)} label="Play Time" />
+            <Tile i={2} bg="#E3F8EA" fg="#16A34A" icon="chart-bar" num={accuracy} suffix="%" label="Accuracy" />
           </View>
 
           <View style={s.calHead}>
@@ -56,33 +57,41 @@ export default function StatsScreen({ onBack }: { onBack: () => void }) {
               const key = dayKey(new Date(month.getFullYear(), month.getMonth(), d));
               const done = played.has(key), isToday = key === today;
               return (
-                <View key={i} style={s.day}>
+                <FadeIn key={`${month.getMonth()}-${i}`} delay={350 + i * 12} y={6} duration={420} style={s.day}>
                   <View style={[s.dot, done && s.dotDone, isToday && !done && s.dotToday]}>
                     <Text style={[s.dayText, (done || isToday) && { color: '#fff' }]}>{d}</Text>
                   </View>
-                </View>
+                </FadeIn>
               );
             })}
           </View>
           <Text style={s.streak}>🔥 Current streak: {streak(g.days)} day{streak(g.days) === 1 ? '' : 's'}</Text>
-        </View>
+        </FadeIn>
 
+        <FadeIn delay={500} y={20} style={{ width: '100%', maxWidth: 440 }}>
         <LinearGradient colors={['#7C4DFF', '#5B3BE8']} style={s.banner}>
           <Icon name="bullseye-arrow" size={40} color="#fff" />
           <Text style={s.bannerText}>Build a daily habit{'\n'}one puzzle at a time!</Text>
         </LinearGradient>
+        </FadeIn>
       </ScrollView>
     </View>
   );
 }
 
-function Tile({ bg, fg, icon, value, label }: { bg: string; fg: string; icon: any; value: string; label: string }) {
+function Tile({ i, bg, fg, icon, value, num, suffix = '', label }: {
+  i: number; bg: string; fg: string; icon: any; value?: string; num?: number; suffix?: string; label: string;
+}) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => { const id = setTimeout(() => setShown(num ?? 0), 300 + i * 120); return () => clearTimeout(id); }, [num]);
   return (
-    <View style={[s.tile, { backgroundColor: bg }]}>
+    <FadeIn delay={200 + i * 120} y={16} style={[s.tile, { backgroundColor: bg }]}>
       <Icon name={icon} size={30} color={fg} />
-      <Text style={[s.tileValue, { color: fg }]}>{value}</Text>
+      {num !== undefined
+        ? <Text style={[s.tileValue, { color: fg }]}><CountUp value={shown} style={[s.tileValue, { color: fg }]} />{suffix}</Text>
+        : <Text style={[s.tileValue, { color: fg }]}>{value}</Text>}
       <Text style={[s.tileLabel, { color: fg }]}>{label}</Text>
-    </View>
+    </FadeIn>
   );
 }
 

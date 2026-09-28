@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { cellsOf, Dir, Entry, generate, difficulty } from './generate';
 import { dayKey, getGame, HINT_COST, LEVEL_REWARD, updateGame, useGame } from './store';
 import { themeById } from './themes';
-import { Confetti, F, Toast } from '../ui';
+import { Scenery } from './Scenery';
+import { Confetti, CountUp, F, Toast } from '../ui';
+import { EASE, FadeIn, Rays } from './motion';
 import { play } from '../sound';
 
 const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
@@ -23,7 +24,14 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
   const [sel, setSel] = useState<[number, number]>([entries[0].row, entries[0].col]);
   const [dir, setDir] = useState<Dir>(entries[0].dir);
   const [erasers, setErasers] = useState(ERASERS);
-  const [flash, setFlash] = useState<Set<string>>(new Set());
+  // Solved-word light sweep: cell key → its position along the word.
+  const [flash, setFlash] = useState<Map<string, number>>(new Map());
+  const [sweepId, setSweepId] = useState(0);
+  // Grid cascades in from the top-left on each level.
+  const intro = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(intro, { toValue: 1, duration: 900, easing: EASE, useNativeDriver: Platform.OS !== 'web' }).start();
+  }, []);
   const [toast, setToast] = useState<string | null>(null);
   const [won, setWon] = useState(false);
 
@@ -73,7 +81,9 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     if (newly.length) {
       const keys = new Set(newly.flatMap((e) => cellsOf(e).map(([y, x]) => k(y, x))));
       setLocked((l) => new Set([...l, ...keys]));
-      setFlash(keys); setTimeout(() => setFlash(new Set()), 700);
+      setFlash(new Map(newly.flatMap((e) => cellsOf(e).map(([y, x], i) => [k(y, x), i] as [string, number]))));
+      setSweepId((n) => n + 1);
+      setTimeout(() => setFlash(new Map()), 1400);
       play('word');
     }
     if (entries.every((e) => solvedEntry(e, next))) win();
@@ -174,24 +184,55 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const decoys = level <= 20 ? 2 : level <= 100 ? 3 : 4;
+  const bank = useMemo(() => {
+    const need = curCells.filter(([y, x]) => !locked.has(k(y, x))).map(([y, x]) => solution[y][x]!);
+    let seed = level * 31 + current.num * 7 + (current.dir === 'down' ? 3 : 0);
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const pool = 'EEAAIIOOUTNRSLDCMPBGHKWY';
+    const extra = Array.from({ length: need.length ? decoys : 0 }, () => pool[Math.floor(rnd() * pool.length)]);
+    const all = [...need, ...extra];
+    for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    return all;
+    // Recompute only when the word or its solved squares change.
+  }, [current, locked.size]);
+  // A bank tile counts as used while a matching letter sits in one of this word's open squares.
+  const used = useMemo(() => {
+    const typed = curCells.filter(([y, x]) => !locked.has(k(y, x)) && fill[y][x]).map(([y, x]) => fill[y][x]);
+    return bank.map((l) => { const i = typed.indexOf(l); if (i < 0) return false; typed.splice(i, 1); return true; });
+  }, [bank, fill]);
+  const [bankOrder, setBankOrder] = useState(0);
+  const shown = useMemo(() => {
+    const idx = bank.map((_, i) => i);
+    if (bankOrder) for (let i = idx.length - 1; i > 0; i--) { const j = (i * 7 + bankOrder * 3) % (i + 1); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    return idx;
+  }, [bank, bankOrder]);
+
   const gridW = Math.min(width - 32, 440);
   const gap = 3;
   const cell = Math.floor((gridW - 8 - gap * (size - 1)) / size);
   const numbers = new Map(entries.map((e) => [k(e.row, e.col), e.num]));
   const keyW = Math.min(40, (Math.min(width, 520) - 16 - 9 * 5) / 10);
+  const bankTile = Math.min(50, (Math.min(width, 520) - 40 - 6 * 8) / Math.max(7, Math.ceil(bank.length / (bank.length > 9 ? 2 : 1))));
 
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient colors={t.bg} style={StyleSheet.absoluteFill} />
+      <Scenery theme={t.id} />
       <View style={s.header}>
         <Pressable onPress={onBack} hitSlop={12}><Icon name="arrow-left" size={26} color={t.headerText} /></Pressable>
         <View style={{ alignItems: 'center' }}>
           <Text style={[s.level, { color: t.headerText }]}>Level {level}</Text>
           <Text style={[s.diff, { color: t.headerText }]}>{difficulty(level).label}</Text>
         </View>
-        <View style={s.coins}>
-          <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
-          <Text style={s.coinText}>{game.coins}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable onPress={() => updateGame({ input: game.input === 'keyboard' ? 'letters' : 'keyboard' })} hitSlop={8}
+            style={s.modeBtn} accessibilityLabel={game.input === 'keyboard' ? 'Use letter tiles' : 'Use full keyboard'}>
+            <Icon name={game.input === 'keyboard' ? 'view-grid-outline' : 'keyboard-outline'} size={20} color="#fff" />
+          </Pressable>
+          <View style={s.coins}>
+            <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
+            <Text style={s.coinText}>{game.coins}</Text>
+          </View>
         </View>
       </View>
 
@@ -204,13 +245,20 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
                 const isSel = sel[0] === r && sel[1] === c;
                 const letter = fill[r][c];
                 const bad = letter && letter !== sol && entries.some((e) => inEntry(e, r, c) && fullEntry(e));
-                const bg = isSel ? t.selected : flash.has(k(r, c)) ? t.selected : inCur(r, c) ? t.word : t.cell;
+                const bg = isSel ? t.selected : inCur(r, c) ? t.word : t.cell;
+                const d = ((r + c) / (2 * size - 2)) * 0.6;
                 return (
-                  <Pressable key={c} testID={`cell-${r}-${c}`} onPress={() => select(r, c)}
+                  <Animated.View key={c} style={{
+                    opacity: intro.interpolate({ inputRange: [d, d + 0.4], outputRange: [0, 1], extrapolate: 'clamp' }),
+                    transform: [{ scale: intro.interpolate({ inputRange: [d, d + 0.4], outputRange: [0.4, 1], extrapolate: 'clamp' }) }],
+                  }}>
+                  <Pressable testID={`cell-${r}-${c}`} onPress={() => select(r, c)}
                     style={[s.cell, { width: cell, height: cell, backgroundColor: bg }]}>
+                    {flash.has(k(r, c)) && <Sweep key={sweepId} index={flash.get(k(r, c))!} color={t.selected} />}
                     {numbers.has(k(r, c)) && <Text style={[s.num, { color: t.number, fontSize: cell * 0.22 }]}>{numbers.get(k(r, c))}</Text>}
-                    <Text style={[s.letter, { fontSize: cell * 0.56, lineHeight: cell * 0.8, color: bad ? t.wrong : t.cellText }]}>{letter}</Text>
+                    {letter ? <Letter key={letter} ch={letter} size={cell} color={bad ? t.wrong : t.cellText} pulse={flash.has(k(r, c)) ? flash.get(k(r, c))! : -1} sweepId={sweepId} /> : null}
                   </Pressable>
+                  </Animated.View>
                 );
               })}
             </View>
@@ -228,7 +276,8 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
           <Pressable onPress={() => step(1)} hitSlop={10} style={s.arrow}><Icon name="chevron-right" size={26} color="#3A4257" /></Pressable>
         </View>
 
-        <View style={{ gap: 7, alignItems: 'center' }}>
+        {game.input === 'keyboard' ? (
+        <FadeIn y={10} duration={300} style={{ gap: 7, alignItems: 'center' }}>
           {ROWS.map((row, i) => (
             <View key={row} style={{ flexDirection: 'row', gap: 5 }}>
               {[...row].map((l) => (
@@ -243,7 +292,30 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
               )}
             </View>
           ))}
-        </View>
+        </FadeIn>
+
+        ) : (
+          <View style={s.bankWrap}>
+            <View key={`${current.dir}${current.num}`} style={s.bank}>
+              {shown.map((i, n) => (
+                <FadeIn key={i} delay={n * 35} y={14} duration={380}>
+                  <Pressable testID={`bank-${n}`} onPress={() => !used[i] && type(bank[i])} disabled={used[i]}
+                    style={({ pressed }) => [s.bankTile, { width: bankTile, height: bankTile }, used[i] && s.bankUsed, pressed && { transform: [{ scale: 0.94 }] }]}>
+                    <Text style={[s.bankText, { fontSize: bankTile * 0.5, lineHeight: bankTile * 0.66 }]}>{bank[i]}</Text>
+                  </Pressable>
+                </FadeIn>
+              ))}
+            </View>
+            <View style={s.bankTools}>
+              <Pressable onPress={() => setBankOrder((n) => n + 1)} style={s.bankTool} accessibilityLabel="Shuffle letters">
+                <Icon name="rotate-3d-variant" size={20} color="#3A4257" /><Text style={s.bankToolText}>Mix</Text>
+              </Pressable>
+              <Pressable onPress={backspace} style={[s.bankTool, { backgroundColor: '#2563EB' }]} accessibilityLabel="Delete letter">
+                <Icon name="backspace-outline" size={20} color="#fff" /><Text style={[s.bankToolText, { color: '#fff' }]}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <View style={s.powers}>
           <Power color="#8B5CF6" icon="lightbulb-on" cost={`${HINT_COST}`} coin onPress={hint} label="Hint" />
@@ -253,25 +325,73 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
       </View>
 
       {won && (
-        <View style={s.overlay}>
-          <View style={s.winCard}>
-            <Icon name="trophy" size={64} color="#F5B301" />
-            <Text style={s.winTitle}>Level {level} complete!</Text>
-            <View style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
-              <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
-              <Text style={[s.coinText, { color: '#8A5A00' }]}>+{LEVEL_REWARD}</Text>
+        <FadeIn y={0} duration={400} style={s.overlay}>
+          <FadeIn delay={250} y={40} scale={0.92} duration={700} style={s.winCard}>
+            <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center' }}>
+              <Rays size={230} />
+              <FadeIn delay={600} scale={0.5} y={0} duration={650}><Icon name="trophy" size={72} color="#F5B301" /></FadeIn>
             </View>
+            <Text style={s.winTitle}>Level {level} complete!</Text>
+            <FadeIn delay={900} y={10} style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
+              <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
+              <Text style={[s.coinText, { color: '#8A5A00' }]}>+</Text>
+              <WinCoins />
+            </FadeIn>
             <Pressable onPress={onNext} style={s.nextBtn}>
               <Text style={s.nextText}>Next Level</Text>
             </Pressable>
             <Pressable onPress={onBack}><Text style={s.homeLink}>Home</Text></Pressable>
-          </View>
+          </FadeIn>
           <Confetti />
-        </View>
+        </FadeIn>
       )}
       <Toast text={toast} />
     </View>
   );
+}
+
+/** Coin reward rolling up from 0 once the card is in. */
+function WinCoins() {
+  const [v, setV] = useState(0);
+  useEffect(() => { const id = setTimeout(() => setV(LEVEL_REWARD), 950); return () => clearTimeout(id); }, []);
+  return <CountUp value={v} style={[s.coinText, { color: '#8A5A00' }]} />;
+}
+
+/** Letters ease in when typed, and lift gently as the solve sweep passes over them. */
+function Letter({ ch, size, color, pulse, sweepId }: { ch: string; size: number; color: string; pulse: number; sweepId: number }) {
+  const a = useRef(new Animated.Value(0)).current;
+  const lift = useRef(new Animated.Value(0)).current;
+  const nd = Platform.OS !== 'web';
+  useEffect(() => { Animated.timing(a, { toValue: 1, duration: 180, easing: EASE, useNativeDriver: nd }).start(); }, []);
+  useEffect(() => {
+    if (pulse < 0) return;
+    Animated.sequence([
+      Animated.delay(pulse * 70),
+      Animated.timing(lift, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: nd }),
+      Animated.timing(lift, { toValue: 0, duration: 380, easing: Easing.inOut(Easing.quad), useNativeDriver: nd }),
+    ]).start();
+  }, [sweepId]);
+  return (
+    <Animated.Text style={[s.letter, { fontSize: size * 0.56, lineHeight: size * 0.8, color, opacity: a,
+      transform: [
+        { scale: Animated.add(a.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }), lift.interpolate({ inputRange: [0, 1], outputRange: [0, 0.12] })) },
+        { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+      ] }]}>{ch}</Animated.Text>
+  );
+}
+
+/** A wash of the theme's highlight that travels along a newly solved word. */
+function Sweep({ index, color }: { index: number; color: string }) {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const nd = Platform.OS !== 'web';
+    Animated.sequence([
+      Animated.delay(index * 70),
+      Animated.timing(a, { toValue: 1, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: nd }),
+      Animated.timing(a, { toValue: 0, duration: 600, easing: Easing.inOut(Easing.quad), useNativeDriver: nd }),
+    ]).start();
+  }, []);
+  return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 5, backgroundColor: color, opacity: a }]} />;
 }
 
 const inEntry = (e: Entry, r: number, c: number) => cellsOf(e).some(([y, x]) => y === r && x === c);
@@ -294,13 +414,13 @@ function Power({ color, icon, cost, coin, onPress, label, disabled }: {
 
 const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 10, paddingBottom: 6 },
-  level: { fontFamily: F.heavy, fontSize: 22 },
+  level: { fontFamily: F.heavy, fontSize: 22, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   diff: { fontFamily: F.regular, fontSize: 12, opacity: 0.75, marginTop: -4 },
   coins: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 18, paddingLeft: 4, paddingRight: 12, paddingVertical: 3 },
   coinDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#F5B301', borderWidth: 2, borderColor: '#FFD54A', alignItems: 'center', justifyContent: 'center' },
   coinGlyph: { color: '#fff', fontFamily: F.heavy, fontSize: 12, lineHeight: 16 },
   coinText: { fontFamily: F.heavy, fontSize: 16, color: '#3A4257' },
-  board: { borderRadius: 14 },
+  board: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   cell: { borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   num: { position: 'absolute', top: 1, left: 3, fontFamily: F.bold },
   letter: { fontFamily: F.heavy },
@@ -309,6 +429,17 @@ const s = StyleSheet.create({
   arrow: { paddingHorizontal: 8 },
   clueHead: { fontFamily: F.heavy, fontSize: 16, color: '#1F2640' },
   clue: { fontFamily: F.regular, fontSize: 15, color: '#3A4257', textAlign: 'center', marginTop: -2 },
+  modeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  bankWrap: { alignItems: 'center', gap: 12, minHeight: 170, justifyContent: 'center' },
+  bank: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
+  bankTile: { borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#E3E8F2', borderBottomWidth: 4, borderBottomColor: '#C9D2E3',
+    shadowColor: '#1F2A6B', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  bankUsed: { opacity: 0.25, transform: [{ scale: 0.9 }] },
+  bankText: { fontFamily: F.heavy, color: '#1F2A6B' },
+  bankTools: { flexDirection: 'row', gap: 12 },
+  bankTool: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F1F4FA', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  bankToolText: { fontFamily: F.bold, fontSize: 14, color: '#3A4257' },
   key: { height: 46, borderRadius: 8, backgroundColor: '#F4F6FB', alignItems: 'center', justifyContent: 'center',
     borderBottomWidth: 2, borderBottomColor: '#D5DBE7' },
   keyDown: { backgroundColor: '#DDE5F5', transform: [{ translateY: 1 }] },
@@ -321,7 +452,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
   powerCostText: { fontFamily: F.heavy, fontSize: 12, color: '#3A4257' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,14,40,0.55)', alignItems: 'center', justifyContent: 'center' },
-  winCard: { backgroundColor: '#fff', borderRadius: 28, padding: 28, alignItems: 'center', gap: 12, width: 300 },
+  winCard: { backgroundColor: '#fff', borderRadius: 28, padding: 28, alignItems: 'center', gap: 12, width: 300, overflow: 'hidden' },
   winTitle: { fontFamily: F.heavy, fontSize: 26, color: '#1F2640', textAlign: 'center' },
   nextBtn: { backgroundColor: '#2563EB', borderRadius: 26, paddingVertical: 14, alignSelf: 'stretch', alignItems: 'center', borderBottomWidth: 4, borderBottomColor: '#1B4DB8' },
   nextText: { color: '#fff', fontFamily: F.heavy, fontSize: 20 },
