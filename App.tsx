@@ -6,6 +6,7 @@ import WordGame from './src/WordGame';
 import { PUZZLES } from './src/arrowPuzzles';
 import { C } from './src/ui';
 import { isMuted, setMuted } from './src/sound';
+import { isUnlocked, useStars } from './src/progress';
 
 type Screen = { kind: 'menu' } | { kind: 'arrow'; level: number } | { kind: 'word'; id: number };
 
@@ -14,6 +15,8 @@ export default function App() {
   const [muted, setMutedState] = useState(isMuted());
   const toggleMute = () => { setMuted(!muted); setMutedState(!muted); };
   const menu = () => setScreen({ kind: 'menu' });
+  const stars = useStars();
+  const total = Object.values(stars).reduce((a, b) => a + b, 0);
 
   return (
     <SafeAreaView style={s.root}>
@@ -34,18 +37,28 @@ export default function App() {
             <Text style={s.bigText}>Play vs Bot</Text>
             <Text style={s.bigSub}>Make words · hit 2W / 3W · maximize your score</Text>
           </Pressable>
-          <Text style={s.section}>Arrow Crossword · {PUZZLES.length} puzzles</Text>
+          <Text style={s.section}>Arrow Crossword · ★ {total}/{PUZZLES.length * 3}</Text>
           <View style={s.levels}>
             {PUZZLES.map((p, i) => (
-              <Pressable key={i} style={s.level} onPress={() => setScreen({ kind: 'arrow', level: i })}>
-                <Text style={s.levelNum}>{i + 1}</Text>
-                <Text style={s.levelSub}>{p.answers.length}×{p.answers.length}</Text>
-              </Pressable>
+              isUnlocked(stars, i) ? (
+                <Pressable key={i} style={s.level} onPress={() => setScreen({ kind: 'arrow', level: i })}>
+                  <Text style={s.levelNum}>{i + 1}</Text>
+                  <Text style={s.levelStars}>
+                    {stars[i] ? [1, 2, 3].map((k) => (k <= stars[i] ? '★' : '☆')).join('') : `${p.answers.length}×${p.answers.length}`}
+                  </Text>
+                </Pressable>
+              ) : (
+                <View key={i} style={[s.level, s.locked]}>
+                  <Text style={{ fontSize: 20 }}>🔒</Text>
+                  <Text style={s.levelSub}>{i + 1}</Text>
+                </View>
+              )
             ))}
           </View>
         </ScrollView>
       )}
-      {screen.kind === 'arrow' && <ArrowGame key={screen.level} puzzle={PUZZLES[screen.level]} onExit={menu} />}
+      {screen.kind === 'arrow' && <ArrowGame key={screen.level} level={screen.level} puzzle={PUZZLES[screen.level]} onExit={menu}
+        onNext={screen.level + 1 < PUZZLES.length ? () => setScreen({ kind: 'arrow', level: screen.level + 1 }) : undefined} />}
       {screen.kind === 'word' && <WordGame key={screen.id} onExit={menu} />}
     </SafeAreaView>
   );
@@ -63,6 +76,8 @@ const s = StyleSheet.create({
   levels: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', maxWidth: 420, alignSelf: 'stretch' },
   level: { width: 64, height: 64, borderRadius: 18, backgroundColor: C.tile, borderWidth: 1.5, borderColor: C.tileEdge, alignItems: 'center', justifyContent: 'center' },
   levelNum: { fontSize: 28, fontWeight: '900', color: '#2B2F3A' },
+  levelStars: { fontSize: 12, color: '#E0A10E', letterSpacing: 1 },
+  locked: { backgroundColor: '#EEF1F6', borderColor: '#DDE2EA' },
   levelSub: { fontSize: 11, color: '#7A6440' },
   big: { alignSelf: 'stretch', maxWidth: 420, backgroundColor: C.blue, borderRadius: 24, padding: 20 },
   bigText: { color: '#fff', fontSize: 22, fontWeight: '900' },

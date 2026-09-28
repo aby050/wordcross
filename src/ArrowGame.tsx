@@ -4,6 +4,7 @@ import { ArrowPuzzle } from './arrowPuzzles';
 import { C, MainButton, RoundButton, ScoreBar, Toast } from './ui';
 import { DragTile, hitCell } from './drag';
 import { play } from './sound';
+import { saveStars, starsFor } from './progress';
 
 type Cell = { letter: string | null; locked: boolean; owner?: 'you' | 'opp' };
 const TRAY = 5;
@@ -14,7 +15,9 @@ function shuffle<T>(a: T[]) {
   return b;
 }
 
-export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onExit: () => void }) {
+export default function ArrowGame({ puzzle, level, onExit, onNext }: {
+  puzzle: ArrowPuzzle; level: number; onExit: () => void; onNext?: () => void;
+}) {
   const n = puzzle.answers.length;
   const { width } = useWindowDimensions();
   const cell = Math.floor(Math.min(width - 32, 460) / (n + 1));
@@ -40,6 +43,13 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
     return out;
   }, [grid, puzzle]);
   const done = remaining.length === 0;
+  const [earned, setEarned] = useState(0);
+  useEffect(() => {
+    if (!done) return;
+    const stars = starsFor(you > opp, 3 - hints);
+    setEarned(stars);
+    saveStars(level, stars);
+  }, [done]);
 
   // Refill the tray with letters the board still needs (always solvable).
   useEffect(() => {
@@ -220,12 +230,20 @@ export default function ArrowGame({ puzzle, onExit }: { puzzle: ArrowPuzzle; onE
             onTap={() => setSel(sel === i ? null : i)} onDrop={(x, y) => dropTray(i, x, y)} />
         ))}
       </View>
+      {done && (
+        <View style={st.result}>
+          <Text style={st.stars}>{[1, 2, 3].map((i) => (i <= earned ? '★' : '☆')).join(' ')}</Text>
+          <Text style={st.starHelp}>
+            {earned === 3 ? 'Perfect: beat the bot with no hints' : earned === 2 ? 'Beat the bot without hints for 3★' : 'Beat the bot for 2★'}
+          </Text>
+        </View>
+      )}
       <Text style={st.help}>{done ? winner : turn === 'you' ? 'Drag a tile onto a square (or tap tile, then square)' : 'Bot is thinking…'}</Text>
 
       <View style={st.bar}>
         <RoundButton icon="🔀" label="Shuffle" onPress={() => setTray(shuffle(tray))} />
         {done
-          ? <MainButton label="Back to menu" onPress={onExit} />
+          ? <MainButton label={onNext ? 'Next puzzle →' : 'Back to menu'} onPress={onNext ?? onExit} />
           : <MainButton label={pending ? 'Submit' : 'Pass'} onPress={submit} disabled={turn !== 'you'} />}
         <RoundButton icon="💡" label="Hint" badge={hints} onPress={hint} disabled={!hints || turn !== 'you'} />
       </View>
@@ -242,6 +260,9 @@ const st = StyleSheet.create({
   cell: { borderWidth: 0.5, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
   big: { fontWeight: '800', color: '#2B2F3A' },
   tray: { flexDirection: 'row', gap: 12, marginTop: 22, minHeight: 64, alignItems: 'center' },
+  result: { alignItems: 'center', marginTop: 12 },
+  stars: { fontSize: 44, color: '#F2B01E', letterSpacing: 4 },
+  starHelp: { color: '#8A94A8', fontSize: 13 },
   help: { color: '#8A94A8', marginTop: 8 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, marginTop: 'auto', marginBottom: 16, width: '100%', maxWidth: 520 },
 });
