@@ -7,7 +7,7 @@ Copy for Google Play Console and App Store Connect. Developer: **RV Studio** (rv
 | Field | Value |
 |---|---|
 | App name | WordCross: Crossword Puzzles |
-| Android package / iOS bundle ID | `com.aby050.wordcross` |
+| Android package / iOS bundle ID | `com.abhay.wordcross` |
 | Category | Games → Word (Play) · Games → Word, Puzzle (App Store) |
 | Price | Free, no in-app purchases, no ads |
 | Privacy policy URL | https://rvstudio.in/wordcross/privacy |

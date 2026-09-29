@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.aby050.wordcross",
+      "bundleIdentifier": "com.abhay.wordcross",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "com.aby050.wordcross",
+      "package": "com.abhay.wordcross",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2F3FD6"
