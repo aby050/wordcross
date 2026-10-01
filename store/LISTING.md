@@ -11,7 +11,7 @@ Copy for Google Play Console and App Store Connect. Developer: **RV Studio** (rv
 | Category | Games → Word (Play) · Games → Word, Puzzle (App Store) |
 | Price | Free, no in-app purchases, no ads |
 | Privacy policy URL | https://rvstudio.in/wordcross/privacy |
-| Support URL / email | https://rvstudio.in · support@rvstudio.in |
+| Support URL / email | https://rvstudio.in · work@rvastudio.in |
 | Marketing URL | https://rvstudio.in/wordcross |
 
 ## Short description (Play, max 80 chars)

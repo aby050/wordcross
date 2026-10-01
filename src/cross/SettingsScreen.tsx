@@ -8,7 +8,7 @@ import { F } from '../ui';
 import { FadeIn } from './motion';
 
 export const PRIVACY_URL = 'https://rvstudio.in/wordcross/privacy';
-export const SUPPORT_EMAIL = 'support@rvstudio.in';
+export const SUPPORT_EMAIL = 'work@rvastudio.in';
 
 export default function SettingsScreen({ onBack, onTutorial }: { onBack: () => void; onTutorial: () => void }) {
   const g = useGame();
