@@ -40,6 +40,8 @@ function build(size: number, target: number, maxLen: number, r: () => number): P
   const pool = CLUES.filter((c) => c.word.length <= Math.min(maxLen, size) && c.word.length >= 3);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const grid: (string | null)[][] = Array.from({ length: size }, () => Array(size).fill(null));
+  // Which cells already carry an across / down word, so a word never lies on top of another in its own direction.
+  const used = { across: grid.map((r) => r.map(() => false)), down: grid.map((r) => r.map(() => false)) };
   const placed: Placed[] = [];
   const at = (y: number, x: number) => (y < 0 || x < 0 || y >= size || x >= size ? null : grid[y][x]);
 
@@ -51,14 +53,18 @@ function build(size: number, target: number, maxLen: number, r: () => number): P
     let crossings = 0;
     for (let i = 0; i < w.length; i++) {
       const y = row + dy * i, x = col + dx * i, cur = grid[y][x];
-      if (cur) { if (cur !== w[i]) return -1; crossings++; continue; }
+      if (cur) { if (cur !== w[i] || used[dir][y][x]) return -1; crossings++; continue; }
       // A new letter must not touch other letters sideways (no accidental words).
       if (at(y + dx, x + dy) || at(y - dx, x - dy)) return -1;
     }
     return crossings === w.length ? -1 : crossings;
   };
   const put = (c: { word: string; clue: string }, row: number, col: number, dir: Dir) => {
-    for (let i = 0; i < c.word.length; i++) grid[row + (dir === 'down' ? i : 0)][col + (dir === 'across' ? i : 0)] = c.word[i];
+    for (let i = 0; i < c.word.length; i++) {
+      const y = row + (dir === 'down' ? i : 0), x = col + (dir === 'across' ? i : 0);
+      grid[y][x] = c.word[i];
+      used[dir][y][x] = true;
+    }
     placed.push({ ...c, row, col, dir });
   };
 
