@@ -7,7 +7,7 @@ import { resetProgress, updateGame, useGame } from './store';
 import { F } from '../ui';
 import { FadeIn } from './motion';
 
-export const PRIVACY_URL = 'https://rvstudio.in/wordcross/privacy';
+export const PRIVACY_URL = 'https://rvastudio.in/wordcross/privacy';
 export const SUPPORT_EMAIL = 'work@rvastudio.in';
 
 export default function SettingsScreen({ onBack, onTutorial }: { onBack: () => void; onTutorial: () => void }) {
@@ -61,7 +61,7 @@ export default function SettingsScreen({ onBack, onTutorial }: { onBack: () => v
           )}
         </FadeIn>
 
-        <Text style={s.version}>WordCross {Constants.expoConfig?.version ?? ''} · RV Studio</Text>
+        <Text style={s.version}>WordCross {Constants.expoConfig?.version ?? ''} · RVA Studio</Text>
       </ScrollView>
     </View>
   );

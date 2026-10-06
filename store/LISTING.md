@@ -1,6 +1,6 @@
 # WordCross store listing
 
-Copy for Google Play Console and App Store Connect. Developer: **RV Studio** (rvstudio.in).
+Copy for Google Play Console and App Store Connect. Developer: **RVA Studio** (rvastudio.in).
 
 ## Identity
 
@@ -10,9 +10,9 @@ Copy for Google Play Console and App Store Connect. Developer: **RV Studio** (rv
 | Android package / iOS bundle ID | `com.abhay.wordcross` |
 | Category | Games → Word (Play) · Games → Word, Puzzle (App Store) |
 | Price | Free, no in-app purchases, no ads |
-| Privacy policy URL | https://rvstudio.in/wordcross/privacy |
-| Support URL / email | https://rvstudio.in · work@rvastudio.in |
-| Marketing URL | https://rvstudio.in/wordcross |
+| Privacy policy URL | https://rvastudio.in/wordcross/privacy |
+| Support URL / email | https://rvastudio.in · work@rvastudio.in |
+| Marketing URL | none (games get no website) |
 
 ## Short description (Play, max 80 chars)
 
