@@ -53,7 +53,8 @@
           "recordAudioAndroid": false,
           "enableBackgroundPlayback": false
         }
-      ]
+      ],
+      "./plugins/withSceneLifecycle"
     ],
     "description": "Relaxing crossword puzzles: 1000+ levels, beautiful themes and daily streaks."
   }
