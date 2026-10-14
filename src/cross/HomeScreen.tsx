@@ -6,6 +6,7 @@ import { F } from '../ui';
 import { Scenery } from './Scenery';
 import { FadeIn, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
+import { rankOf } from './awards';
 
 export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle' | 'settings' | 'book';
 
@@ -87,7 +88,7 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
           <CardIn i={0}><Card icon="image-search-outline" color="#F59E0B" title="Arrows" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
           <CardIn i={1}><Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} /></CardIn>
           <CardIn i={2}><Card icon="book-open-page-variant" color="#0EA5E9" title="Word Book" sub={`${Object.keys(g.book).length} saved`} onPress={() => go('book')} /></CardIn>
-          <CardIn i={3}><Card icon="chart-bar" color="#22C55E" title="Statistics" sub={`${g.solved} solved`} onPress={() => go('stats')} /></CardIn>
+          <CardIn i={3}><Card icon="trophy-award" color="#22C55E" title="Awards" sub={`Rank: ${rankOf(g).rank.name}`} onPress={() => go('stats')} /></CardIn>
         </View>
 
         <FadeIn delay={1150} y={16}><View style={s.trophy}>

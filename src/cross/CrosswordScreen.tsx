@@ -3,6 +3,7 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimen
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { cellsOf, Dir, Entry, generate, difficulty } from './generate';
 import { THEME_NAMES, ThemeKey } from './clues';
+import { Award, checkAwards, trackStreak } from './awards';
 import { dayKey, earnInk, getGame, HINT_COST, INK_HINT, THEME_BONUS, recordWords, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
 import { themeById } from './themes';
 import { Scenery } from './Scenery';
@@ -19,6 +20,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
   const { width } = useWindowDimensions();
   const puzzle = useMemo(() => generate(level), [level]);
   const { size, solution, entries } = puzzle;
+  const [newAwards, setNewAwards] = useState<Award[]>([]);
   const [guess, setGuess] = useState<'idle' | 'open' | 'right' | 'wrong'>('idle');
   const themeOptions = useMemo(() => {
     if (!puzzle.theme) return [] as ThemeKey[];
@@ -27,7 +29,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     return [puzzle.theme, ...others].sort((a, b) => ((a.charCodeAt(1) * level) % 5) - ((b.charCodeAt(1) * level) % 5));
   }, [puzzle, level]);
   const pickTheme = (k: ThemeKey) => {
-    if (k === puzzle.theme) { setGuess('right'); updateGame((g) => ({ coins: g.coins + THEME_BONUS })); say(`Yes, ${THEME_NAMES[k]}! +${THEME_BONUS} coins`); play('word'); }
+    if (k === puzzle.theme) { setGuess('right'); updateGame((g) => ({ coins: g.coins + THEME_BONUS, themeWins: g.themeWins + 1 })); const got = checkAwards(); if (got.length) setNewAwards((n) => [...n, ...got]); say(got.length ? `Award: ${got[0].title}!` : `Yes, ${THEME_NAMES[k]}! +${THEME_BONUS} coins`); play('word'); }
     else { setGuess('wrong'); say(`Not quite, it was ${THEME_NAMES[puzzle.theme!]}`); play('wrong'); }
   };
 
@@ -99,7 +101,9 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
       setTimeout(() => setFlash(new Map()), 1400);
       recordWords(newly);
       const gain = earnInk(newly);
-      say(`+${gain} letter points`);
+      const got = checkAwards();
+      say(got.length ? `Award: ${got.map((a) => a.title).join(', ')} +${got.reduce((n, a) => n + a.reward, 0)}` : `+${gain} letter points`);
+      if (got.length) setNewAwards((n) => [...n, ...got]);
       play('word');
     }
     if (entries.every((e) => solvedEntry(e, next))) win();
@@ -198,7 +202,11 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
       solved: s.solved + 1,
       level: Math.max(s.level, level + 1),
       days: s.days.includes(dayKey()) ? s.days : [...s.days, dayKey()],
+      noHint: s.noHint + (hintsUsed.current ? 0 : 1),
     }));
+    trackStreak();
+    const got = checkAwards();
+    if (got.length) setNewAwards((n) => [...n, ...got]);
   };
 
   // Hardware keyboards (web, tablets with keyboards) type straight into the grid.
@@ -384,6 +392,9 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
               <FadeIn delay={600} scale={0.5} y={0} duration={650}><Icon name="trophy" size={72} color="#F5B301" /></FadeIn>
             </View>
             <Text style={s.winTitle}>Level {level} complete!</Text>
+            {newAwards.map((a) => (
+              <View key={a.id} style={s.awardRow}><Icon name={a.icon as any} size={20} color={a.color} /><Text style={s.awardText}>Award: {a.title} +{a.reward}</Text></View>
+            ))}
             {puzzle.theme && <Text style={s.noHint}>Theme: {THEME_NAMES[puzzle.theme]}{guess === 'right' ? ` · +${THEME_BONUS} coins` : ''}</Text>}
             {reward > LEVEL_REWARD && <Text style={s.noHint}>No-hint bonus +{NO_HINT_BONUS}</Text>}
             <FadeIn delay={900} y={10} style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
@@ -470,6 +481,8 @@ function Power({ color, icon, cost, coin, onPress, label, disabled }: {
 }
 
 const s = StyleSheet.create({
+  awardRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF4D6', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5 },
+  awardText: { fontFamily: F.bold, fontSize: 13, color: '#8A5A00' },
   subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 2 },
   themeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 14, paddingHorizontal: 11, paddingVertical: 4 },
   themeChipText: { fontFamily: F.bold, fontSize: 13, color: '#fff' },

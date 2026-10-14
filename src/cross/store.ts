@@ -22,6 +22,10 @@ export type GameState = {
   bonusDay: string; // last day the daily coin bonus was claimed
   book: Record<string, BookWord>; // every word solved: Word Book
   ink: number; // letter points earned from solved words; spend on hints
+  awards: string[]; // unlocked award ids
+  noHint: number; // levels finished without a hint
+  themeWins: number; // level themes guessed right
+  bestStreak: number; // longest run of consecutive play days
 };
 
 /** One solved word: how often it came up and how often recall failed in the quiz. */
@@ -29,7 +33,7 @@ export type BookWord = { clue: string; n: number; miss: number; last: string };
 
 const DEFAULT: GameState = {
   level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false, input: 'letters',
-  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0,
+  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0, awards: [], noHint: 0, themeWins: 0, bestStreak: 0,
 };
 
 let state: GameState = DEFAULT;
