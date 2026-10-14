@@ -6,7 +6,7 @@ Copy for Google Play Console and App Store Connect. Developer: **RVA Studio** (r
 
 | Field | Value |
 |---|---|
-| App name | WordCross: Crossword Puzzles |
+| App name | WordCross: Offline Crossword |
 | Android package / iOS bundle ID | `com.abhay.wordcross` |
 | Category | Games → Word (Play) · Games → Word, Puzzle (App Store) |
 | Price | Free, no in-app purchases, no ads |
@@ -16,11 +16,11 @@ Copy for Google Play Console and App Store Connect. Developer: **RVA Studio** (r
 
 ## Short description (Play, max 80 chars)
 
-Relaxing crosswords: 1000+ levels, beautiful themes and daily streaks.
+Offline crossword puzzles: no internet, no ads. 1000+ levels and calming themes.
 
 ## Subtitle (App Store, max 30 chars)
 
-Relaxing Crossword Puzzles
+Offline Crossword, No Ads
 
 ## Promotional text (App Store, max 170 chars)
 
@@ -28,7 +28,7 @@ Unwind with 1000+ crosswords from easy to hard. Pick a calming theme, keep your 
 
 ## Full description
 
-Crossword puzzle fun, anytime and anywhere.
+Crossword puzzles that work offline: on a plane, a train or with no signal at all.
 
 WordCross is a calm, beautiful crossword game for word lovers of every level. Pick a square, read the clue and build the answer from letter tiles, or switch to a full keyboard for a classic challenge.
 
@@ -38,14 +38,14 @@ WordCross is a calm, beautiful crossword game for word lovers of every level. Pi
 • HELPFUL POWER-UPS: Reveal a letter, erase mistakes or jump to another clue.
 • DAILY STREAKS: Free coins every day, a progress calendar and stats for puzzles solved, play time and accuracy.
 • BONUS MODES: Picture-clue arrow puzzles and a word battle against a friendly bot.
-• PLAY OFFLINE: No internet needed, no ads, no sign-up.
+• 100% OFFLINE: Every level, clue and mode works with no internet. No ads, no sign-up.
 • PRIVATE: Your progress stays on your device. We collect no data.
 
 Improve your vocabulary, focus and memory, or simply relax with a puzzle and a cup of tea.
 
 ## Keywords (App Store, max 100 chars)
 
-crossword,word,puzzle,brain,vocabulary,relax,offline,daily,clue,game,letters,trivia,mind
+crossword,offline,word,puzzle,brain,vocabulary,relax,no wifi,daily,clue,game,letters,trivia,mind
 
 ## Content rating answers
 

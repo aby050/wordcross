@@ -295,15 +295,22 @@ WINTER|Coldest season
 WIZARD|Magic user
 `;
 
+export const THEME_NAMES = { nature: 'Nature', home: 'Home', people: 'People', activity: 'Activities', things: 'Everyday Things' } as const;
+export type ThemeKey = keyof typeof THEME_NAMES;
+/** Which themed bank a word came from (words in the general banks have no theme). */
+export const THEME_OF: Record<string, ThemeKey> = {};
+
 /** Every ANSWER|clue line, deduplicated (first clue wins), 3-8 letters so it fits the grids. */
 export const CLUES: { word: string; clue: string }[] = (() => {
   const seen = new Set<string>();
   const out: { word: string; clue: string }[] = [];
-  for (const block of [RAW, nature, home, people, activity, things, verbs, describe]) {
+  const blocks: [string, ThemeKey | null][] = [[RAW, null], [nature, 'nature'], [home, 'home'], [people, 'people'], [activity, 'activity'], [things, 'things'], [verbs, null], [describe, null]];
+  for (const [block, theme] of blocks) {
     for (const line of block.trim().split('\n')) {
       const [word, clue] = line.split('|');
       if (!clue || !/^[A-Z]{3,8}$/.test(word) || seen.has(word)) continue;
       seen.add(word);
+      if (theme) THEME_OF[word] = theme;
       out.push({ word, clue: clue.trim() });
     }
   }

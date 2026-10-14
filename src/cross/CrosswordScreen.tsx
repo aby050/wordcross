@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { cellsOf, Dir, Entry, generate, difficulty } from './generate';
-import { dayKey, getGame, HINT_COST, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
+import { THEME_NAMES, ThemeKey } from './clues';
+import { dayKey, earnInk, getGame, HINT_COST, INK_HINT, THEME_BONUS, recordWords, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
 import { themeById } from './themes';
 import { Scenery } from './Scenery';
 import { Confetti, CountUp, F, Toast } from '../ui';
@@ -18,6 +19,17 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
   const { width } = useWindowDimensions();
   const puzzle = useMemo(() => generate(level), [level]);
   const { size, solution, entries } = puzzle;
+  const [guess, setGuess] = useState<'idle' | 'open' | 'right' | 'wrong'>('idle');
+  const themeOptions = useMemo(() => {
+    if (!puzzle.theme) return [] as ThemeKey[];
+    const keys = Object.keys(THEME_NAMES) as ThemeKey[];
+    const others = keys.filter((k) => k !== puzzle.theme).sort((a, b) => ((a.charCodeAt(0) * level) % 7) - ((b.charCodeAt(0) * level) % 7)).slice(0, 2);
+    return [puzzle.theme, ...others].sort((a, b) => ((a.charCodeAt(1) * level) % 5) - ((b.charCodeAt(1) * level) % 5));
+  }, [puzzle, level]);
+  const pickTheme = (k: ThemeKey) => {
+    if (k === puzzle.theme) { setGuess('right'); updateGame((g) => ({ coins: g.coins + THEME_BONUS })); say(`Yes, ${THEME_NAMES[k]}! +${THEME_BONUS} coins`); play('word'); }
+    else { setGuess('wrong'); say(`Not quite, it was ${THEME_NAMES[puzzle.theme!]}`); play('wrong'); }
+  };
 
   const [fill, setFill] = useState<string[][]>(() => solution.map((row) => row.map(() => '')));
   const [locked, setLocked] = useState<Set<string>>(new Set());
@@ -33,6 +45,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     Animated.timing(intro, { toValue: 1, duration: 900, easing: EASE, useNativeDriver: Platform.OS !== 'web' }).start();
   }, []);
   const [toast, setToast] = useState<string | null>(null);
+  const [stuck, setStuck] = useState(false);
   const [won, setWon] = useState(false);
 
   // Stats are buffered and written once, so typing doesn't hammer storage.
@@ -84,6 +97,9 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
       setFlash(new Map(newly.flatMap((e) => cellsOf(e).map(([y, x], i) => [k(y, x), i] as [string, number]))));
       setSweepId((n) => n + 1);
       setTimeout(() => setFlash(new Map()), 1400);
+      recordWords(newly);
+      const gain = earnInk(newly);
+      say(`+${gain} letter points`);
       play('word');
     }
     if (entries.every((e) => solvedEntry(e, next))) win();
@@ -130,12 +146,13 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
 
   const hint = () => {
     if (won) return;
-    if (getGame().coins < HINT_COST) { say(`Hints cost ${HINT_COST} coins`); play('wrong'); return; }
+    const useInk = getGame().ink >= INK_HINT;
+    if (!useInk && getGame().coins < HINT_COST) { say(`Hints cost ${INK_HINT} letter points or ${HINT_COST} coins`); play('wrong'); return; }
     const target = [sel, ...curCells].find(([y, x]) => fill[y][x] !== solution[y][x] && !locked.has(k(y, x)))
       ?? entries.flatMap(cellsOf).find(([y, x]) => fill[y][x] !== solution[y][x]);
     if (!target) return;
     const [r, c] = target;
-    updateGame((s) => ({ coins: s.coins - HINT_COST }));
+    updateGame((s) => (useInk ? { ink: s.ink - INK_HINT } : { coins: s.coins - HINT_COST }));
     hintsUsed.current++;
     const next = fill.map((row) => row.slice());
     next[r][c] = solution[r][c]!;
@@ -159,6 +176,14 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     const open = entries.filter((e) => e !== current && !solvedEntry(e));
     if (open.length) goEntry(open[Math.floor(Math.random() * open.length)]);
   };
+
+  // Stuck nudge: after 75s with no move, point at the open word's first empty square instead of giving the answer away.
+  useEffect(() => {
+    setStuck(false);
+    if (won) return;
+    const id = setTimeout(() => { setStuck(true); say('Stuck? Try another clue, or tap Hint'); }, 75000);
+    return () => clearTimeout(id);
+  }, [fill, sel, won]);
 
   const hintsUsed = useRef(0);
   const [reward, setReward] = useState(LEVEL_REWARD);
@@ -215,12 +240,20 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
 
   // Fit the grid to both the screen width and the space left between header and panel.
   const [areaH, setAreaH] = useState(0);
-  const gridW = Math.min(width - 32, 440, areaH ? areaH - 16 : 440);
+  // Crop empty rows/columns so the used part of the grid gets the whole play area.
+  const used2 = solution.flatMap((row, r) => row.map((v, c) => (v ? [r, c] : null)).filter(Boolean)) as number[][];
+  const r0 = Math.min(...used2.map((u) => u[0])), r1 = Math.max(...used2.map((u) => u[0]));
+  const c0 = Math.min(...used2.map((u) => u[1])), c1 = Math.max(...used2.map((u) => u[1]));
+  const rowsN = r1 - r0 + 1, colsN = c1 - c0 + 1;
   const gap = 3;
-  const cell = Math.floor((gridW - 8 - gap * (size - 1)) / size);
+  const maxW = Math.min(width - 12, 520), maxH = areaH ? areaH - 6 : 440;
+  const cell = Math.floor(Math.min((maxW - 8 - gap * (colsN - 1)) / colsN, (maxH - 8 - gap * (rowsN - 1)) / rowsN, 84));
+  const gridW = cell * colsN + gap * (colsN - 1) + 8;
+  const nudge = (r: number, c: number) => { const f = curCells.find(([y, x]) => !fill[y][x]); return !!f && f[0] === r && f[1] === c; };
   const numbers = new Map(entries.map((e) => [k(e.row, e.col), e.num]));
   const keyW = Math.min(40, (Math.min(width, 520) - 16 - 9 * 5) / 10);
-  const bankTile = Math.min(50, (Math.min(width, 520) - 40 - 6 * 8) / Math.max(7, Math.ceil(bank.length / (bank.length > 9 ? 2 : 1))));
+  const avail = Math.min(width, 520) - 16 - 28;
+  const bankTile = Math.max(38, Math.min(48, Math.floor((avail - (bank.length - 1) * 6) / Math.max(bank.length, 1))));
 
   return (
     <View style={{ flex: 1 }}>
@@ -229,7 +262,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
         <Pressable onPress={onBack} hitSlop={12}><Icon name="arrow-left" size={26} color={t.headerText} /></Pressable>
         <View style={{ alignItems: 'center' }}>
           <Text style={[s.level, { color: t.headerText }]}>Level {level}</Text>
-          <Text style={[s.diff, { color: t.headerText }]}>{difficulty(level).label}</Text>
+          <Text style={[s.diff, { color: t.headerText }]}>{difficulty(level).label} · {entries.filter((e) => solvedEntry(e)).length}/{entries.length} words</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Pressable onPress={() => updateGame({ input: game.input === 'keyboard' ? 'letters' : 'keyboard' })} hitSlop={8}
@@ -242,12 +275,33 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
           </View>
         </View>
       </View>
+      {(puzzle.theme || game.ink > 0) && (
+        <View style={s.subRow}>
+          {puzzle.theme && guess !== 'right' && guess !== 'wrong' && !won ? (
+            <Pressable onPress={() => setGuess(guess === 'open' ? 'idle' : 'open')} style={s.themeChip}>
+              <Icon name="help-circle" size={16} color="#fff" />
+              <Text style={s.themeChipText}>Guess the theme +{THEME_BONUS}</Text>
+            </Pressable>
+          ) : puzzle.theme ? (
+            <View style={s.themeChip}><Icon name="tag" size={14} color="#fff" /><Text style={s.themeChipText}>{THEME_NAMES[puzzle.theme]}</Text></View>
+          ) : <View />}
+          <View style={s.themeChip}><Icon name="star-four-points" size={14} color="#FFE14D" /><Text style={s.themeChipText}>{game.ink} pts</Text></View>
+        </View>
+      )}
+      {guess === 'open' && (
+        <View style={s.guessRow}>
+          {themeOptions.map((k) => (
+            <Pressable key={k} onPress={() => pickTheme(k)} style={s.guessBtn}><Text style={s.guessText}>{THEME_NAMES[k]}</Text></Pressable>
+          ))}
+        </View>
+      )}
 
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)}>
         <View style={[s.board, { width: gridW, backgroundColor: t.board, padding: 4, gap }]}>
-          {solution.map((row, r) => (
+          {solution.map((row, r) => (r < r0 || r > r1 ? null : (
             <View key={r} style={{ flexDirection: 'row', gap }}>
               {row.map((sol, c) => {
+                if (c < c0 || c > c1) return null;
                 if (!sol) return <View key={c} style={{ width: cell, height: cell }} />;
                 const isSel = sel[0] === r && sel[1] === c;
                 const letter = fill[r][c];
@@ -260,7 +314,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
                     transform: [{ scale: intro.interpolate({ inputRange: [d, d + 0.4], outputRange: [0.4, 1], extrapolate: 'clamp' }) }],
                   }}>
                   <Pressable testID={`cell-${r}-${c}`} onPress={() => select(r, c)}
-                    style={[s.cell, { width: cell, height: cell, backgroundColor: bg }]}>
+                    style={[s.cell, { width: cell, height: cell, backgroundColor: bg }, stuck && nudge(r, c) && { borderWidth: 3, borderColor: t.wrong }]}>
                     {flash.has(k(r, c)) && <Sweep key={sweepId} index={flash.get(k(r, c))!} color={t.selected} />}
                     {numbers.has(k(r, c)) && <Text style={[s.num, { color: t.number, fontSize: cell * 0.22 }]}>{numbers.get(k(r, c))}</Text>}
                     {letter ? <Letter key={letter} ch={letter} size={cell} color={bad ? t.wrong : t.cellText} pulse={flash.has(k(r, c)) ? flash.get(k(r, c))! : -1} sweepId={sweepId} /> : null}
@@ -269,22 +323,22 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
                 );
               })}
             </View>
-          ))}
+          )))}
         </View>
       </View>
 
       <View style={s.panel}>
         <View style={s.clueRow}>
-          <Pressable onPress={() => step(-1)} hitSlop={10} style={s.arrow}><Icon name="chevron-left" size={26} color="#3A4257" /></Pressable>
+          <Pressable onPress={() => step(-1)} hitSlop={10} style={s.arrow}><Icon name="chevron-left" size={24} color="#3A4257" /></Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={s.clueHead}>{current.dir === 'across' ? 'Across' : 'Down'} {current.num}</Text>
-            <Text style={s.clue} numberOfLines={2}>{current.clue} ({current.answer.length})</Text>
+            <Text style={s.clue} numberOfLines={2}>{current.clue}</Text>
+            <Text style={s.dirText}>{current.num} {current.dir === 'across' ? 'Across' : 'Down'} · {current.answer.length} letters</Text>
           </View>
-          <Pressable onPress={() => step(1)} hitSlop={10} style={s.arrow}><Icon name="chevron-right" size={26} color="#3A4257" /></Pressable>
+          <Pressable onPress={() => step(1)} hitSlop={10} style={s.arrow}><Icon name="chevron-right" size={24} color="#3A4257" /></Pressable>
         </View>
 
         {game.input === 'keyboard' ? (
-        <FadeIn y={10} duration={300} style={{ gap: 7, alignItems: 'center' }}>
+        <FadeIn y={10} duration={300} style={{ gap: 6, alignItems: 'center' }}>
           {ROWS.map((row, i) => (
             <View key={row} style={{ flexDirection: 'row', gap: 5 }}>
               {[...row].map((l) => (
@@ -300,34 +354,25 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
             </View>
           ))}
         </FadeIn>
-
         ) : (
-          <View style={s.bankWrap}>
-            <View key={`${current.dir}${current.num}`} style={s.bank}>
-              {shown.map((i, n) => (
-                <FadeIn key={i} delay={n * 35} y={14} duration={380}>
-                  <Pressable testID={`bank-${n}`} onPress={() => !used[i] && type(bank[i])} disabled={used[i]}
-                    style={({ pressed }) => [s.bankTile, { width: bankTile, height: bankTile }, used[i] && s.bankUsed, pressed && { transform: [{ scale: 0.94 }] }]}>
-                    <Text style={[s.bankText, { fontSize: bankTile * 0.5, lineHeight: bankTile * 0.66 }]}>{bank[i]}</Text>
-                  </Pressable>
-                </FadeIn>
-              ))}
-            </View>
-            <View style={s.bankTools}>
-              <Pressable onPress={() => setBankOrder((n) => n + 1)} style={s.bankTool} accessibilityLabel="Shuffle letters">
-                <Icon name="rotate-3d-variant" size={20} color="#3A4257" /><Text style={s.bankToolText}>Mix</Text>
-              </Pressable>
-              <Pressable onPress={backspace} style={[s.bankTool, { backgroundColor: '#2563EB' }]} accessibilityLabel="Delete letter">
-                <Icon name="backspace-outline" size={20} color="#fff" /><Text style={[s.bankToolText, { color: '#fff' }]}>Delete</Text>
-              </Pressable>
-            </View>
+          <View key={`${current.dir}${current.num}`} style={s.bank}>
+            {shown.map((i, n) => (
+              <FadeIn key={i} delay={n * 30} y={10} duration={320}>
+                <Pressable testID={`bank-${n}`} onPress={() => !used[i] && type(bank[i])} disabled={used[i]}
+                  style={({ pressed }) => [s.bankTile, { width: bankTile, height: bankTile }, used[i] && s.bankUsed, pressed && { transform: [{ scale: 0.94 }] }]}>
+                  <Text style={[s.bankText, { fontSize: bankTile * 0.52, lineHeight: bankTile * 0.7 }]}>{bank[i]}</Text>
+                </Pressable>
+              </FadeIn>
+            ))}
           </View>
         )}
 
         <View style={s.powers}>
-          <Power color="#8B5CF6" icon="lightbulb-on" cost={`${HINT_COST}`} coin onPress={hint} label="Hint" />
-          <Power color="#EF4B5F" icon="eraser" cost={`${erasers}`} onPress={erase} label="Erase wrong" disabled={!erasers} />
-          <Power color="#22C55E" icon="shuffle-variant" cost="∞" onPress={shuffleClue} label="Other clue" />
+          {game.input !== 'keyboard' && <Power color="#64748B" icon="shuffle" cost="" onPress={() => setBankOrder((n) => n + 1)} label="Mix" />}
+          <Power color="#8B5CF6" icon="lightbulb-on" cost={game.ink >= INK_HINT ? `${INK_HINT}pt` : `${HINT_COST}`} coin={game.ink < INK_HINT} onPress={hint} label="Hint" />
+          <Power color="#EF4B5F" icon="eraser" cost={`${erasers}`} onPress={erase} label="Erase" disabled={!erasers} />
+          <Power color="#22C55E" icon="skip-next" cost="" onPress={shuffleClue} label="Skip" />
+          {game.input !== 'keyboard' && <Power color="#2563EB" icon="backspace-outline" cost="" onPress={backspace} label="Delete" />}
         </View>
       </View>
 
@@ -339,6 +384,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
               <FadeIn delay={600} scale={0.5} y={0} duration={650}><Icon name="trophy" size={72} color="#F5B301" /></FadeIn>
             </View>
             <Text style={s.winTitle}>Level {level} complete!</Text>
+            {puzzle.theme && <Text style={s.noHint}>Theme: {THEME_NAMES[puzzle.theme]}{guess === 'right' ? ` · +${THEME_BONUS} coins` : ''}</Text>}
             {reward > LEVEL_REWARD && <Text style={s.noHint}>No-hint bonus +{NO_HINT_BONUS}</Text>}
             <FadeIn delay={900} y={10} style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
               <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
@@ -408,20 +454,29 @@ function Power({ color, icon, cost, coin, onPress, label, disabled }: {
   color: string; icon: any; cost: string; coin?: boolean; onPress: () => void; label: string; disabled?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={label} style={{ alignItems: 'center', opacity: disabled ? 0.45 : 1 }}>
-      <View style={[s.power, { backgroundColor: color, shadowColor: color }]}>
-        <Icon name={icon} size={30} color="#fff" />
+    <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={label} style={{ alignItems: 'center', opacity: disabled ? 0.45 : 1, minWidth: 54 }}>
+      <View style={[s.power, { backgroundColor: color }]}>
+        <Icon name={icon} size={22} color="#fff" />
+        {cost !== '' && (
+          <View style={s.powerCost}>
+            {coin && <View style={[s.coinDot, { width: 11, height: 11, borderWidth: 1 }]} />}
+            <Text style={s.powerCostText}>{cost}</Text>
+          </View>
+        )}
       </View>
-      <View style={s.powerCost}>
-        {coin && <View style={[s.coinDot, { width: 14, height: 14 }]}><Text style={[s.coinGlyph, { fontSize: 9 }]}>$</Text></View>}
-        <Text style={s.powerCostText}>{cost}</Text>
-      </View>
+      <Text style={s.powerLabel}>{label}</Text>
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 10, paddingBottom: 6 },
+  subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 2 },
+  themeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 14, paddingHorizontal: 11, paddingVertical: 4 },
+  themeChipText: { fontFamily: F.bold, fontSize: 13, color: '#fff' },
+  guessRow: { position: 'absolute', top: 96, left: 0, right: 0, zIndex: 10, flexDirection: 'row', gap: 8, justifyContent: 'center', paddingHorizontal: 12 },
+  guessBtn: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 3, borderBottomColor: '#C9D2E3' },
+  guessText: { fontFamily: F.heavy, fontSize: 14, color: '#1F2640' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 2 },
   level: { fontFamily: F.heavy, fontSize: 22, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   diff: { fontFamily: F.regular, fontSize: 12, opacity: 0.75, marginTop: -4 },
   coins: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 18, paddingLeft: 4, paddingRight: 12, paddingVertical: 3 },
@@ -432,15 +487,17 @@ const s = StyleSheet.create({
   cell: { borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
   num: { position: 'absolute', top: 1, left: 3, fontFamily: F.bold },
   letter: { fontFamily: F.heavy },
-  panel: { backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 12, paddingBottom: 18, paddingHorizontal: 8, gap: 12 },
-  clueRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F4FA', borderRadius: 16, marginHorizontal: 6, paddingVertical: 6, alignSelf: 'center', width: '96%', maxWidth: 560 },
+  panel: { backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingTop: 8, paddingBottom: 10, paddingHorizontal: 8, gap: 8 },
+  clueRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', borderRadius: 16, marginHorizontal: 6, paddingVertical: 5, alignSelf: 'center', width: '96%', maxWidth: 560 },
   arrow: { paddingHorizontal: 8 },
   clueHead: { fontFamily: F.heavy, fontSize: 16, color: '#1F2640' },
-  clue: { fontFamily: F.regular, fontSize: 15, color: '#3A4257', textAlign: 'center', marginTop: -2 },
+  clue: { fontFamily: F.heavy, fontSize: 16, lineHeight: 20, color: '#1F2640', textAlign: 'center', paddingHorizontal: 4 },
+  dirChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2F3FD6', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 1 },
+  dirText: { fontFamily: F.bold, fontSize: 11.5, color: '#6B7280' },
   modeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
-  bankWrap: { alignItems: 'center', gap: 12, minHeight: 170, justifyContent: 'center' },
-  bank: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
-  bankTile: { borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+  bankWrap: { alignItems: 'center', gap: 10, minHeight: 130, justifyContent: 'center' },
+  bank: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, paddingHorizontal: 14 },
+  bankTile: { borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
     borderWidth: 1.5, borderColor: '#E3E8F2', borderBottomWidth: 4, borderBottomColor: '#C9D2E3',
     shadowColor: '#1F2A6B', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   bankUsed: { opacity: 0.25, transform: [{ scale: 0.9 }] },
@@ -453,12 +510,11 @@ const s = StyleSheet.create({
   keyDown: { backgroundColor: '#DDE5F5', transform: [{ translateY: 1 }] },
   keyText: { fontFamily: F.heavy, fontSize: 19, color: '#1F2640' },
   back: { backgroundColor: '#2563EB', borderBottomColor: '#1B4DB8' },
-  powers: { flexDirection: 'row', justifyContent: 'space-evenly', marginTop: 2 },
-  power: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: 'rgba(255,255,255,0.6)', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
-  powerCost: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: -10, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 1,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, elevation: 2 },
-  powerCostText: { fontFamily: F.heavy, fontSize: 12, color: '#3A4257' },
+  powers: { flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 4 },
+  powerLabel: { fontFamily: F.bold, fontSize: 11, color: '#6B7280', marginTop: 2 },
+  power: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  powerCost: { position: 'absolute', top: -7, right: -9, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff', borderRadius: 9, paddingHorizontal: 5, paddingVertical: 0, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
+  powerCostText: { fontFamily: F.heavy, fontSize: 11, color: '#3A4257' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,14,40,0.55)', alignItems: 'center', justifyContent: 'center' },
   winCard: { backgroundColor: '#fff', borderRadius: 28, padding: 28, alignItems: 'center', gap: 12, width: 300, overflow: 'hidden' },
   winTitle: { fontFamily: F.heavy, fontSize: 26, color: '#1F2640', textAlign: 'center' },

@@ -15,8 +15,8 @@ export type Sfx = keyof typeof SOURCES;
 const HAPTIC: Partial<Record<Sfx, () => Promise<void>>> = {
   pickup: () => Haptics.selectionAsync(),
   place: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-  word: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
-  wrong: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+  word: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+  wrong: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
   win: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
 };
 
@@ -38,6 +38,7 @@ export function play(name: Sfx) {
   try {
     init();
     const p = (players[name] ??= createAudioPlayer(SOURCES[name]));
+    p.volume = 0.8;
     p.seekTo(0);
     p.play();
   } catch {

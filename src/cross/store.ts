@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { VALUES } from '../scrabble';
 
 const KEY = 'wordcross.game.v1';
 
@@ -19,11 +20,16 @@ export type GameState = {
   haptics: boolean;
   seenTutorial: boolean;
   bonusDay: string; // last day the daily coin bonus was claimed
+  book: Record<string, BookWord>; // every word solved: Word Book
+  ink: number; // letter points earned from solved words; spend on hints
 };
+
+/** One solved word: how often it came up and how often recall failed in the quiz. */
+export type BookWord = { clue: string; n: number; miss: number; last: string };
 
 const DEFAULT: GameState = {
   level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false, input: 'letters',
-  haptics: true, seenTutorial: false, bonusDay: '',
+  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0,
 };
 
 let state: GameState = DEFAULT;
@@ -69,6 +75,16 @@ export const HINT_COST = 100;
 export const LEVEL_REWARD = 50;
 export const NO_HINT_BONUS = 25; // extra for finishing a level without hints
 export const DAILY_BONUS = 100;
+export const THEME_BONUS = 30; // for guessing a level's hidden theme
+export const INK_HINT = 12; // letter points one hint costs
+
+
+/** Solved words pay out letter points: rare letters (Q, Z, X, J) are worth the most. */
+export function earnInk(words: { answer: string }[]) {
+  const gain = words.reduce((n, w) => n + [...w.answer].reduce((m, ch) => m + (VALUES[ch] ?? 1), 0), 0);
+  updateGame((s) => ({ ink: s.ink + gain }));
+  return gain;
+}
 
 /** Grants the daily bonus once per calendar day; returns true if it was granted now. */
 export function claimDailyBonus() {
@@ -77,6 +93,27 @@ export function claimDailyBonus() {
   if (!state.bonusDay) { updateGame({ bonusDay: dayKey() }); return false; }
   updateGame((s) => ({ coins: s.coins + DAILY_BONUS, bonusDay: dayKey() }));
   return true;
+}
+
+/** Adds solved words to the Word Book (clue kept from the first time it was seen). */
+export function recordWords(words: { answer: string; clue: string }[]) {
+  updateGame((s) => {
+    const book = { ...s.book };
+    for (const w of words) {
+      const old = book[w.answer];
+      book[w.answer] = { clue: old?.clue ?? w.clue, n: (old?.n ?? 0) + 1, miss: old?.miss ?? 0, last: dayKey() };
+    }
+    return { book };
+  });
+}
+
+/** Quiz result: a miss makes the word come up sooner next time. */
+export function recordRecall(word: string, ok: boolean) {
+  updateGame((s) => {
+    const w = s.book[word];
+    if (!w) return {};
+    return { book: { ...s.book, [word]: { ...w, miss: ok ? Math.max(0, w.miss - 1) : w.miss + 1 } } };
+  });
 }
 
 /** Wipes crossword progress, stats and coins; keeps preferences. */

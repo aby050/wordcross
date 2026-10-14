@@ -7,7 +7,7 @@ import { Scenery } from './Scenery';
 import { FadeIn, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
 
-export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle' | 'settings';
+export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle' | 'settings' | 'book';
 
 /** The crossed WORD / CROSS tile logo; the shared O is the gold tile. */
 function Logo() {
@@ -44,9 +44,14 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
       <ScrollView contentContainerStyle={s.wrap}>
         <FadeIn delay={0} y={-10} style={s.topRow}>
           <View style={s.chip}><Icon name="fire" size={18} color="#FF8A3D" /><Text style={s.chipText}>{days} day{days === 1 ? '' : 's'}</Text></View>
-          <Pressable onPress={() => go('settings')} hitSlop={10} style={s.chip} accessibilityLabel="Settings">
-            <Icon name="cog" size={18} color="#fff" />
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable onPress={() => go('themes')} hitSlop={10} style={s.chip} accessibilityLabel="Themes">
+              <Icon name="palette" size={18} color="#fff" />
+            </Pressable>
+            <Pressable onPress={() => go('settings')} hitSlop={10} style={s.chip} accessibilityLabel="Settings">
+              <Icon name="cog" size={18} color="#fff" />
+            </Pressable>
+          </View>
           <View style={s.chip}>
             <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
             <Text style={s.chipText}>{g.coins}</Text>
@@ -59,9 +64,12 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
         <FadeIn delay={160} y={20} style={{ alignItems: 'center' }}>
           <Text style={s.title2}>Puzzle Fun</Text>
         </FadeIn>
-        <FadeIn delay={240} y={12}><Text style={s.tag}>Train your brain anytime, anywhere!</Text></FadeIn>
+        <FadeIn delay={240} y={12} style={s.badges}>
+          <View style={s.badge}><Icon name="wifi-off" size={15} color="#fff" /><Text style={s.badgeText}>Works offline</Text></View>
+          <View style={s.badge}><Icon name="shield-check" size={15} color="#fff" /><Text style={s.badgeText}>No ads</Text></View>
+        </FadeIn>
 
-        <View style={{ marginVertical: 26 }}><Logo /></View>
+        <View style={{ marginVertical: 14, transform: [{ scale: 0.78 }], height: 4 * 51 * 0.78 + 10 }}><Logo /></View>
 
         <FadeIn delay={700} y={24} style={{ width: '100%', maxWidth: 360 }}>
         <Pressable onPress={() => go('play')} style={({ pressed }) => [s.play, pressed && { transform: [{ scale: 0.98 }] }]}>
@@ -76,10 +84,10 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
         </FadeIn>
 
         <View style={s.grid}>
-          <CardIn i={0}><Card icon="palette" color="#EC4899" title="Themes" sub={`${THEMES.length} styles`} onPress={() => go('themes')} /></CardIn>
-          <CardIn i={1}><Card icon="chart-bar" color="#22C55E" title="Statistics" sub={`${g.solved} solved`} onPress={() => go('stats')} /></CardIn>
-          <CardIn i={2}><Card icon="arrow-decision" color="#F59E0B" title="Arrow Puzzles" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
-          <CardIn i={3}><Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} /></CardIn>
+          <CardIn i={0}><Card icon="image-search-outline" color="#F59E0B" title="Arrows" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
+          <CardIn i={1}><Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} /></CardIn>
+          <CardIn i={2}><Card icon="book-open-page-variant" color="#0EA5E9" title="Word Book" sub={`${Object.keys(g.book).length} saved`} onPress={() => go('book')} /></CardIn>
+          <CardIn i={3}><Card icon="chart-bar" color="#22C55E" title="Statistics" sub={`${g.solved} solved`} onPress={() => go('stats')} /></CardIn>
         </View>
 
         <FadeIn delay={1150} y={16}><View style={s.trophy}>
@@ -100,7 +108,7 @@ function Card({ icon, color, title, sub, onPress }: { icon: any; color: string; 
     <Pressable onPress={onPress} style={({ pressed }) => [s.card, pressed && { opacity: 0.85 }]}>
       <View style={[s.cardIcon, { backgroundColor: color }]}><Icon name={icon} size={24} color="#fff" /></View>
       <View style={{ flex: 1 }}>
-        <Text style={s.cardTitle}>{title}</Text>
+        <Text style={s.cardTitle} numberOfLines={1} adjustsFontSizeToFit>{title}</Text>
         <Text style={s.cardSub}>{sub}</Text>
       </View>
     </Pressable>
@@ -118,6 +126,9 @@ const s = StyleSheet.create({
     textShadowColor: 'rgba(20,20,90,0.45)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
   title2: { fontFamily: F.heavy, fontSize: 42, color: '#fff', lineHeight: 50, marginTop: -6, transform: [{ rotate: '-4deg' }],
     textShadowColor: 'rgba(20,20,90,0.45)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
+  badges: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeText: { fontFamily: F.bold, color: '#fff', fontSize: 12.5 },
   tag: { fontFamily: F.bold, color: '#DDE3FF', fontSize: 16, marginTop: 6 },
   tile: { position: 'absolute', backgroundColor: '#FFFFFF', borderRadius: 10, alignItems: 'center', justifyContent: 'center',
     borderBottomWidth: 4, borderBottomColor: '#C9CFEA', shadowColor: '#0B1060', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
@@ -128,13 +139,13 @@ const s = StyleSheet.create({
     overflow: 'hidden', borderBottomWidth: 5, borderBottomColor: '#C98300', shadowColor: '#10136B', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   playText: { fontFamily: F.heavy, fontSize: 28, color: '#5A3500', lineHeight: 32 },
   playSub: { fontFamily: F.bold, fontSize: 14, color: '#7A4B00', marginTop: -4 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 22, maxWidth: 440, width: '100%' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 12,
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16, maxWidth: 440, width: '100%' },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 10, height: 68,
     shadowColor: '#10136B', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  cardIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontFamily: F.heavy, fontSize: 15, color: '#1F2640', lineHeight: 19 },
+  cardIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontFamily: F.heavy, fontSize: 14, color: '#1F2640', lineHeight: 19 },
   cardSub: { fontFamily: F.regular, fontSize: 12, color: '#6B7280' },
-  trophy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 22, backgroundColor: '#FFD94A', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10,
+  trophy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: '#FFD94A', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10,
     transform: [{ rotate: '-3deg' }] },
   trophyText: { fontFamily: F.heavy, fontSize: 17, color: '#3B2A00' },
 });

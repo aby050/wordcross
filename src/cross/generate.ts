@@ -1,8 +1,8 @@
-import { CLUES } from './clues';
+import { CLUES, THEME_NAMES, THEME_OF, ThemeKey } from './clues';
 
 export type Dir = 'across' | 'down';
 export type Entry = { num: number; dir: Dir; row: number; col: number; answer: string; clue: string };
-export type Crossword = { size: number; solution: (string | null)[][]; entries: Entry[] };
+export type Crossword = { size: number; solution: (string | null)[][]; entries: Entry[]; theme: ThemeKey | null };
 
 /** Small deterministic RNG so level N is always the same puzzle. */
 function rng(seed: number) {
@@ -25,19 +25,29 @@ export function difficulty(level: number) {
 
 type Placed = { word: string; clue: string; row: number; col: number; dir: Dir };
 
+/** Two levels in three share a hidden theme: every word comes from one topic. */
+export function themeFor(level: number): ThemeKey | null {
+  if (level % 3 === 0) return null;
+  const keys = Object.keys(THEME_NAMES) as ThemeKey[];
+  return keys[(level + Math.floor(level / 3)) % keys.length];
+}
+
 export function generate(level: number): Crossword {
   const d = difficulty(level);
   // Retry with derived seeds until a dense enough grid comes out.
+  const theme = themeFor(level);
   for (let attempt = 0; attempt < 40; attempt++) {
+    // Try the themed pool first; if it can't fill a grid, fall back to a mixed level.
+    const useTheme = theme && attempt < 25 ? theme : null;
     const r = rng(level * 97 + attempt);
-    const got = build(d.size, d.words, d.maxLen, r);
-    if (got && got.length >= Math.min(d.words, 5)) return finish(d.size, got);
+    const got = build(d.size, d.words, d.maxLen, r, useTheme);
+    if (got && got.length >= Math.min(d.words, useTheme ? 5 : 5)) return finish(d.size, got, useTheme);
   }
   throw new Error(`Could not generate level ${level}`);
 }
 
-function build(size: number, target: number, maxLen: number, r: () => number): Placed[] | null {
-  const pool = CLUES.filter((c) => c.word.length <= Math.min(maxLen, size) && c.word.length >= 3);
+function build(size: number, target: number, maxLen: number, r: () => number, theme: ThemeKey | null): Placed[] | null {
+  const pool = CLUES.filter((c) => c.word.length <= Math.min(maxLen, size) && c.word.length >= 3 && (!theme || THEME_OF[c.word] === theme));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const grid: (string | null)[][] = Array.from({ length: size }, () => Array(size).fill(null));
   // Which cells already carry an across / down word, so a word never lies on top of another in its own direction.
@@ -92,7 +102,7 @@ function build(size: number, target: number, maxLen: number, r: () => number): P
   return placed;
 }
 
-function finish(size: number, placed: Placed[]): Crossword {
+function finish(size: number, placed: Placed[], theme: ThemeKey | null): Crossword {
   const solution: (string | null)[][] = Array.from({ length: size }, () => Array(size).fill(null));
   for (const p of placed) for (let i = 0; i < p.word.length; i++)
     solution[p.row + (p.dir === 'down' ? i : 0)][p.col + (p.dir === 'across' ? i : 0)] = p.word[i];
@@ -101,7 +111,7 @@ function finish(size: number, placed: Placed[]): Crossword {
   const entries = placed
     .map((p) => ({ num: starts.indexOf(p.row * size + p.col) + 1, dir: p.dir, row: p.row, col: p.col, answer: p.word, clue: p.clue }))
     .sort((a, b) => (a.dir === b.dir ? a.num - b.num : a.dir === 'across' ? -1 : 1));
-  return { size, solution, entries };
+  return { size, solution, entries, theme };
 }
 
 export const cellsOf = (e: Entry) =>

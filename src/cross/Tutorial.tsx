@@ -11,7 +11,7 @@ const STEPS = [
   { icon: 'alphabetical-variant', color: '#8B5CF6', title: 'Tap the letters',
     body: 'Build the word from the letter tiles. Some are decoys! Use Mix to shuffle and Delete to undo. Prefer typing? Switch to the full keyboard in Settings.' },
   { icon: 'lightbulb-on', color: '#F59E0B', title: 'Stuck? Use power-ups',
-    body: `Hint reveals a letter for ${HINT_COST} coins. Erase clears wrong letters. Shuffle jumps to another clue.` },
+    body: `Solved words pay letter points, and rare letters pay most. Spend 12 points (or ${HINT_COST} coins) on a hint. Many levels share a hidden theme: guess it for bonus coins.` },
   { icon: 'trophy', color: '#16A34A', title: 'Earn coins every day',
     body: `Solve levels for coins, with a bonus when you use no hints. Come back daily for ${DAILY_BONUS} free coins and keep your streak going.` },
 ];
