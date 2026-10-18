@@ -15,6 +15,7 @@ import { setHaptics, setMuted } from './src/sound';
 import { isUnlocked, useStars } from './src/progress';
 import HomeScreen from './src/cross/HomeScreen';
 import CrosswordScreen from './src/cross/CrosswordScreen';
+import { themeById } from './src/cross/themes';
 import LevelMapScreen from './src/cross/LevelMapScreen';
 import ThemesScreen from './src/cross/ThemesScreen';
 import StatsScreen from './src/cross/StatsScreen';
@@ -28,6 +29,14 @@ import { ScreenIn } from './src/cross/motion';
 type Screen =
   | { kind: 'home' } | { kind: 'play'; level: number; daily?: boolean } | { kind: 'themes' } | { kind: 'map' } | { kind: 'stats' } | { kind: 'book' } | { kind: 'settings' }
   | { kind: 'arrowMenu' } | { kind: 'arrow'; level: number; id?: number } | { kind: 'battle'; id: number };
+
+/** Colour at the foot of the Home screen (theme sky under the navy wash), so the home-indicator strip blends in. */
+function homeFloor(id: Parameters<typeof themeById>[0]) {
+  const hex = themeById(id).bg[1].slice(1);
+  const c = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const wash = [20, 24, 90];
+  return `rgb(${c.map((v, i) => Math.round(v * 0.4 + wash[i] * 0.6)).join(',')})`;
+}
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
@@ -60,6 +69,8 @@ export default function App() {
   return (
     <SafeAreaView style={[s.root, { backgroundColor: dark ? '#2F3FD6' : '#fff' }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
+      {/* The play panel is white: carry it down through the home-indicator inset instead of a blue strip. */}
+      {(screen.kind === 'play' || screen.kind === 'home') && <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80, backgroundColor: screen.kind === 'home' ? homeFloor(game.theme) : '#fff' }} />}
 
       <ScreenIn key={`${screen.kind}-${'level' in screen ? screen.level : ''}-${'id' in screen ? screen.id : ''}`}>
       {screen.kind === 'home' && <HomeScreen go={(n) => setScreen(

@@ -1,10 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { dayKey, DAILY_REWARD, streak, updateGame, useGame } from './store';
 import { F } from '../ui';
 import { Scenery } from './Scenery';
-import { FadeIn, Shimmer, Twinkle } from './motion';
+import { FadeIn, Float, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
 import { rankOf } from './awards';
 
@@ -37,12 +37,18 @@ function Logo() {
 export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
   const g = useGame();
   const days = streak(g.days);
+  const { height } = useWindowDimensions();
+  // The first screen is the hero (Play + Daily); the other modes sit below the fold.
+  const hero = Math.max(600, height - 110);
+  const dailyDone = g.dailyDone.includes(dayKey());
+  const stars = Object.values(g.stars).reduce((a, b) => a + b, 0);
   return (
     <View style={{ flex: 1 }}>
       <Scenery theme={g.theme} />
       <LinearGradient colors={['rgba(47,63,214,0.92)', 'rgba(47,63,214,0.55)', 'rgba(20,24,90,0.25)', 'rgba(20,24,90,0.6)']}
         locations={[0, 0.35, 0.65, 1]} style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={s.wrap}>
+        <View style={{ minHeight: hero, width: '100%', alignItems: 'center', justifyContent: 'space-between', maxWidth: 440 }}>
         <FadeIn delay={0} y={-10} style={s.topRow}>
           <View style={s.chip}><Icon name="fire" size={18} color="#FF8A3D" /><Text style={s.chipText}>{days} day{days === 1 ? '' : 's'}</Text></View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -59,54 +65,74 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
           </View>
         </FadeIn>
 
-        <FadeIn delay={80} y={20} style={{ alignItems: 'center' }}>
-          <Text style={s.title1}>Crossword</Text>
-        </FadeIn>
-        <FadeIn delay={160} y={20} style={{ alignItems: 'center' }}>
-          <Text style={s.title2}>Puzzle Fun</Text>
-        </FadeIn>
-        <FadeIn delay={240} y={12} style={s.badges}>
-          <View style={s.badge}><Icon name="wifi-off" size={15} color="#fff" /><Text style={s.badgeText}>Works offline</Text></View>
-          <View style={s.badge}><Icon name="shield-check" size={15} color="#fff" /><Text style={s.badgeText}>No ads</Text></View>
-        </FadeIn>
+        {/* Hero: logo + title in the middle, the two big calls to action pinned low. */}
+        <View style={{ alignItems: 'center', flex: 1, justifyContent: 'center', gap: 6 }}>
+          <View style={{ transform: [{ scale: 1.18 }], height: 4 * 51 * 1.18 + 6, marginTop: 6 }}><Logo /></View>
+          <FadeIn delay={500} y={14} style={{ alignItems: 'center', marginTop: 10 }}>
+            <Text style={s.title1}>Crossword</Text>
+            <Text style={s.title2}>Puzzle Fun</Text>
+          </FadeIn>
+        </View>
 
-        <View style={{ marginVertical: 14, transform: [{ scale: 0.78 }], height: 4 * 51 * 0.78 + 10 }}><Logo /></View>
-
-        <FadeIn delay={700} y={24} style={{ width: '100%', maxWidth: 360 }}>
-        <Pressable onPress={() => go('play')} style={({ pressed }) => [s.play, pressed && { transform: [{ scale: 0.98 }] }]}>
-          <LinearGradient colors={['#FFE45C', '#FFC928', '#F5A900']} style={[StyleSheet.absoluteFill, { borderRadius: 30 }]} />
-          <Icon name="play" size={30} color="#5A3500" />
-          <View>
-            <Text style={s.playText}>Play</Text>
-            <Text style={s.playSub}>Level {g.level}</Text>
-          </View>
-          <Shimmer width={380} />
-        </Pressable>
-        </FadeIn>
-
-        <FadeIn delay={780} y={20} style={{ width: '100%', maxWidth: 360, marginTop: 12 }}>
-          <Pressable onPress={() => go('daily')} style={({ pressed }) => [s.daily, pressed && { opacity: 0.85 }]}>
-            <Icon name={g.dailyDone.includes(dayKey()) ? 'check-circle' : 'calendar-star'} size={26} color="#fff" />
+        <FadeIn delay={700} y={24} style={{ width: '100%', maxWidth: 400 }}>
+          <Pressable onPress={() => go('play')} style={({ pressed }) => [s.play, pressed && { transform: [{ scale: 0.98 }] }]}>
+            <LinearGradient colors={['#FFE45C', '#FFC928', '#F5A900']} style={[StyleSheet.absoluteFill, { borderRadius: 32 }]} />
+            <View style={s.playDisc}><Icon name="play" size={34} color="#fff" style={{ marginLeft: 3 }} /></View>
             <View style={{ flex: 1 }}>
-              <Text style={s.dailyTitle}>Daily Challenge</Text>
-              <Text style={s.dailySub}>{g.dailyDone.includes(dayKey()) ? 'Done today. Replay for fun' : `New puzzle every day · +${DAILY_REWARD} coins`}</Text>
+              <Text style={s.playText}>Play</Text>
+              <Text style={s.playSub}>Next up: level {g.level}</Text>
             </View>
+            <Icon name="chevron-right" size={30} color="#7A4B00" />
+            <Shimmer width={380} />
           </Pressable>
         </FadeIn>
 
-        <View style={s.grid}>
-          <CardIn i={0}><Card icon="map-marker-path" color="#EC4899" title="Level Map" sub={`${Object.values(g.stars).reduce((a, b) => a + b, 0)} stars`} onPress={() => go('map')} /></CardIn>
-          <CardIn i={0}><Card icon="image-search-outline" color="#F59E0B" title="Arrows" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
-          <CardIn i={1}><Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} /></CardIn>
-          <CardIn i={2}><Card icon="book-open-page-variant" color="#0EA5E9" title="Word Book" sub={`${Object.keys(g.book).length} saved`} onPress={() => go('book')} /></CardIn>
-          <CardIn i={4}><Card icon="palette" color="#14B8A6" title="Themes" sub="Change the look" onPress={() => go('themes')} /></CardIn>
-          <CardIn i={3}><Card icon="trophy-award" color="#22C55E" title="Awards" sub={`Rank: ${rankOf(g).rank.name}`} onPress={() => go('stats')} /></CardIn>
+        <FadeIn delay={780} y={20} style={{ width: '100%', maxWidth: 400, marginTop: 14 }}>
+          <Pressable onPress={() => go('daily')} style={({ pressed }) => [s.daily, pressed && { opacity: 0.9, transform: [{ scale: 0.985 }] }]}>
+            <LinearGradient colors={dailyDone ? ['#22C55E', '#15A34A'] : ['#F43F8E', '#FF7A45']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: 26 }]} />
+            <View style={s.dailyIcon}><Icon name={dailyDone ? 'check-bold' : 'calendar-star'} size={30} color="#fff" /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.dailyTitle}>Daily Challenge</Text>
+              <Text style={s.dailySub}>{dailyDone ? 'Done today. Come back tomorrow' : 'A fresh puzzle every day'}</Text>
+            </View>
+            {!dailyDone && (
+              <View style={s.reward}><View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View><Text style={s.rewardText}>+{DAILY_REWARD}</Text></View>
+            )}
+          </Pressable>
+        </FadeIn>
+
+        <FadeIn delay={1200} y={6} style={s.more}>
+          <Text style={s.moreText}>More ways to play</Text>
+          <Float range={3} period={1400}><Icon name="chevron-down" size={24} color="#DDE3FF" /></Float>
+        </FadeIn>
         </View>
 
-        <FadeIn delay={1150} y={16}><View style={s.trophy}>
-          <Icon name="trophy" size={34} color="#F5B301" />
-          <Text style={s.trophyText}>1000+ Puzzles · 2,000+ words</Text>
-        </View></FadeIn>
+        <View style={s.lower}>
+          <FadeIn y={16}>
+            <Pressable onPress={() => go('map')} style={({ pressed }) => [s.mapCard, pressed && { opacity: 0.9 }]}>
+              <View style={[s.bigIcon, { backgroundColor: '#EC4899' }]}><Icon name="map-marker-path" size={28} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.mapTitle}>Level Map</Text>
+                <Text style={s.mapSub}>Level {g.level} · {stars} stars</Text>
+                <View style={s.track}><View style={[s.trackFill, { width: `${((g.level - 1) % 10) * 10}%` }]} /></View>
+                <Text style={s.mapChest}>{10 - ((g.level - 1) % 10)} levels to the next chest</Text>
+              </View>
+              <Icon name="chevron-right" size={26} color="#9CA3AF" />
+            </Pressable>
+          </FadeIn>
+          <View style={s.grid}>
+            <CardIn i={0}><Tile icon="image-search-outline" a="#FBBF24" b="#F59E0B" title="Arrows" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
+            <CardIn i={1}><Tile icon="sword-cross" a="#A78BFA" b="#7C3AED" title="Word Battle" sub="Play the bot" onPress={() => go('battle')} /></CardIn>
+            <CardIn i={2}><Tile icon="book-open-page-variant" a="#38BDF8" b="#0284C7" title="Word Book" sub={`${Object.keys(g.book).length} saved`} onPress={() => go('book')} /></CardIn>
+            <CardIn i={3}><Tile icon="trophy-award" a="#4ADE80" b="#16A34A" title="Awards" sub={`Rank: ${rankOf(g).rank.name}`} onPress={() => go('stats')} /></CardIn>
+          </View>
+          <FadeIn y={12} style={s.badges}>
+            <View style={s.badge}><Icon name="wifi-off" size={15} color="#fff" /><Text style={s.badgeText}>Works offline</Text></View>
+            <View style={s.badge}><Icon name="shield-check" size={15} color="#fff" /><Text style={s.badgeText}>No ads</Text></View>
+            <View style={s.badge}><Icon name="puzzle" size={15} color="#fff" /><Text style={s.badgeText}>1000+ puzzles</Text></View>
+          </FadeIn>
+        </View>
       </ScrollView>
     </View>
   );
@@ -116,12 +142,24 @@ const CardIn = ({ i, children }: { i: number; children: React.ReactNode }) => (
   <FadeIn delay={850 + i * 80} y={18} style={{ flexBasis: '47%', flexGrow: 1 }}>{children}</FadeIn>
 );
 
+function Tile({ icon, a, b, title, sub, onPress }: { icon: any; a: string; b: string; title: string; sub: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.tile2, pressed && { transform: [{ scale: 0.97 }] }]}>
+      <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 24 }]} />
+      <Icon name={icon} size={64} color="rgba(255,255,255,0.22)" style={{ position: 'absolute', right: -6, bottom: -8 }} />
+      <View style={s.tileIcon}><Icon name={icon} size={24} color="#fff" /></View>
+      <Text style={s.tile2Title} numberOfLines={1}>{title}</Text>
+      <Text style={s.tile2Sub} numberOfLines={1}>{sub}</Text>
+    </Pressable>
+  );
+}
+
 function Card({ icon, color, title, sub, onPress }: { icon: any; color: string; title: string; sub: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.card, pressed && { opacity: 0.85 }]}>
       <View style={[s.cardIcon, { backgroundColor: color }]}><Icon name={icon} size={24} color="#fff" /></View>
       <View style={{ flex: 1 }}>
-        <Text style={s.cardTitle} numberOfLines={1} adjustsFontSizeToFit>{title}</Text>
+        <Text style={s.cardTitle} numberOfLines={1}>{title}</Text>
         <Text style={s.cardSub}>{sub}</Text>
       </View>
     </Pressable>
@@ -129,17 +167,35 @@ function Card({ icon, color, title, sub, onPress }: { icon: any; color: string; 
 }
 
 const s = StyleSheet.create({
+  lower: { width: '100%', maxWidth: 440, paddingTop: 6 },
+  mapCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderRadius: 24, padding: 14,
+    shadowColor: '#10136B', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  bigIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  mapTitle: { fontFamily: F.heavy, fontSize: 19, color: '#1F2640', lineHeight: 26 },
+  mapSub: { fontFamily: F.bold, fontSize: 13.5, color: '#6B7280' },
+  track: { height: 8, borderRadius: 4, backgroundColor: '#E8EBF5', marginTop: 8, overflow: 'hidden' },
+  trackFill: { height: 8, borderRadius: 4, backgroundColor: '#F5B301' },
+  mapChest: { fontFamily: F.regular, fontSize: 12, color: '#8A92A6', marginTop: 4 },
+  tile2: { height: 112, borderRadius: 24, padding: 14, justifyContent: 'flex-end', overflow: 'hidden',
+    shadowColor: '#10136B', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  tileIcon: { position: 'absolute', top: 12, left: 14, width: 40, height: 40, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  tile2Title: { fontFamily: F.heavy, fontSize: 17, color: '#fff', lineHeight: 24 },
+  tile2Sub: { fontFamily: F.bold, fontSize: 12.5, color: 'rgba(255,255,255,0.85)' },
+  playDisc: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#F08C00', alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: '#C77200' },
+  dailyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
+  reward: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6 },
+  rewardText: { fontFamily: F.heavy, fontSize: 16, color: '#fff' },
   wrap: { alignItems: 'center', paddingHorizontal: 18, paddingTop: 12, paddingBottom: 40 },
   topRow: { flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-between', maxWidth: 440, width: '100%', alignItems: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 6 },
   chipText: { color: '#fff', fontFamily: F.heavy, fontSize: 15 },
   coinDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#F5B301', borderWidth: 2, borderColor: '#FFD54A', alignItems: 'center', justifyContent: 'center' },
   coinGlyph: { color: '#fff', fontFamily: F.heavy, fontSize: 11, lineHeight: 15 },
-  title1: { fontFamily: F.heavy, fontSize: 50, color: '#FFE14D', marginTop: 18, lineHeight: 58, transform: [{ rotate: '-4deg' }],
+  title1: { fontFamily: F.heavy, fontSize: 54, color: '#FFE14D', marginTop: 18, lineHeight: 58, transform: [{ rotate: '-4deg' }],
     textShadowColor: 'rgba(20,20,90,0.45)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
   title2: { fontFamily: F.heavy, fontSize: 42, color: '#fff', lineHeight: 50, marginTop: -6, transform: [{ rotate: '-4deg' }],
     textShadowColor: 'rgba(20,20,90,0.45)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
-  badges: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap', justifyContent: 'center' },
+  badges: { flexDirection: 'row', gap: 8, marginTop: 18, flexWrap: 'wrap', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { fontFamily: F.bold, color: '#fff', fontSize: 12.5 },
   tag: { fontFamily: F.bold, color: '#DDE3FF', fontSize: 16, marginTop: 6 },
@@ -148,18 +204,20 @@ const s = StyleSheet.create({
   goldTile: { backgroundColor: '#FFCB2E', borderBottomColor: '#D99A00' },
   tileText: { fontFamily: F.heavy, fontSize: 28, color: '#1F2A6B', lineHeight: 36 },
   spark: { color: '#FFE14D', fontSize: 28 },
-  play: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, height: 72, width: '100%', maxWidth: 360, borderRadius: 30,
-    overflow: 'hidden', borderBottomWidth: 5, borderBottomColor: '#C98300', shadowColor: '#10136B', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  playText: { fontFamily: F.heavy, fontSize: 28, color: '#5A3500', lineHeight: 32 },
+  play: { flexDirection: 'row', alignItems: 'center', gap: 14, height: 92, width: '100%', paddingHorizontal: 16, borderRadius: 32,
+    overflow: 'hidden', borderBottomWidth: 5, borderBottomColor: '#C98300', shadowColor: '#10136B', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 7 },
+  playText: { fontFamily: F.heavy, fontSize: 36, color: '#5A3500', lineHeight: 42 },
   playSub: { fontFamily: F.bold, fontSize: 14, color: '#7A4B00', marginTop: -4 },
-  daily: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#EC4899', borderRadius: 22, padding: 12, borderBottomWidth: 4, borderBottomColor: '#BE185D' },
-  dailyTitle: { fontFamily: F.heavy, fontSize: 17, color: '#fff', lineHeight: 22 },
-  dailySub: { fontFamily: F.bold, fontSize: 12.5, color: '#FFE4F1' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16, maxWidth: 440, width: '100%' },
+  daily: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 26, padding: 14, overflow: 'hidden', shadowColor: '#10136B', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
+  more: { alignItems: 'center', opacity: 0.9, marginTop: 16, marginBottom: 6 },
+  moreText: { fontFamily: F.bold, fontSize: 13, color: '#DDE3FF', marginBottom: -2 },
+  dailyTitle: { fontFamily: F.heavy, fontSize: 21, color: '#fff', lineHeight: 30 },
+  dailySub: { fontFamily: F.bold, fontSize: 14, color: '#FFE4F1' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14, maxWidth: 440, width: '100%' },
   card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 10, height: 68,
     shadowColor: '#10136B', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   cardIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontFamily: F.heavy, fontSize: 14, color: '#1F2640', lineHeight: 19 },
+  cardTitle: { fontFamily: F.heavy, fontSize: 15, color: '#1F2640', lineHeight: 19 },
   cardSub: { fontFamily: F.regular, fontSize: 12, color: '#6B7280' },
   trophy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: '#FFD94A', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10,
     transform: [{ rotate: '-3deg' }] },
