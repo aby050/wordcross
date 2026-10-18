@@ -1,14 +1,14 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
-import { streak, updateGame, useGame } from './store';
+import { dayKey, DAILY_REWARD, streak, updateGame, useGame } from './store';
 import { F } from '../ui';
 import { Scenery } from './Scenery';
 import { FadeIn, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
 import { rankOf } from './awards';
 
-export type Nav = 'play' | 'themes' | 'stats' | 'arrow' | 'battle' | 'settings' | 'book';
+export type Nav = 'play' | 'daily' | 'themes' | 'stats' | 'arrow' | 'battle' | 'settings' | 'book';
 
 /** The crossed WORD / CROSS tile logo; the shared O is the gold tile. */
 function Logo() {
@@ -84,6 +84,16 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
         </Pressable>
         </FadeIn>
 
+        <FadeIn delay={780} y={20} style={{ width: '100%', maxWidth: 360, marginTop: 12 }}>
+          <Pressable onPress={() => go('daily')} style={({ pressed }) => [s.daily, pressed && { opacity: 0.85 }]}>
+            <Icon name={g.dailyDone.includes(dayKey()) ? 'check-circle' : 'calendar-star'} size={26} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.dailyTitle}>Daily Challenge</Text>
+              <Text style={s.dailySub}>{g.dailyDone.includes(dayKey()) ? 'Done today. Replay for fun' : `New puzzle every day · +${DAILY_REWARD} coins`}</Text>
+            </View>
+          </Pressable>
+        </FadeIn>
+
         <View style={s.grid}>
           <CardIn i={0}><Card icon="image-search-outline" color="#F59E0B" title="Arrows" sub="Picture clues" onPress={() => go('arrow')} /></CardIn>
           <CardIn i={1}><Card icon="sword-cross" color="#8B5CF6" title="Word Battle" sub="vs Bot" onPress={() => go('battle')} /></CardIn>
@@ -140,6 +150,9 @@ const s = StyleSheet.create({
     overflow: 'hidden', borderBottomWidth: 5, borderBottomColor: '#C98300', shadowColor: '#10136B', shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   playText: { fontFamily: F.heavy, fontSize: 28, color: '#5A3500', lineHeight: 32 },
   playSub: { fontFamily: F.bold, fontSize: 14, color: '#7A4B00', marginTop: -4 },
+  daily: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#EC4899', borderRadius: 22, padding: 12, borderBottomWidth: 4, borderBottomColor: '#BE185D' },
+  dailyTitle: { fontFamily: F.heavy, fontSize: 17, color: '#fff', lineHeight: 22 },
+  dailySub: { fontFamily: F.bold, fontSize: 12.5, color: '#FFE4F1' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16, maxWidth: 440, width: '100%' },
   card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 10, height: 68,
     shadowColor: '#10136B', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },

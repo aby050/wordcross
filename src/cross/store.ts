@@ -26,6 +26,7 @@ export type GameState = {
   noHint: number; // levels finished without a hint
   themeWins: number; // level themes guessed right
   bestStreak: number; // longest run of consecutive play days
+  dailyDone: string[]; // days the Daily Challenge was finished
 };
 
 /** One solved word: how often it came up and how often recall failed in the quiz. */
@@ -33,7 +34,7 @@ export type BookWord = { clue: string; n: number; miss: number; last: string };
 
 const DEFAULT: GameState = {
   level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false, input: 'letters',
-  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0, awards: [], noHint: 0, themeWins: 0, bestStreak: 0,
+  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0, awards: [], noHint: 0, themeWins: 0, bestStreak: 0, dailyDone: [],
 };
 
 let state: GameState = DEFAULT;
@@ -73,6 +74,16 @@ export function streak(days: string[]) {
   let n = 0;
   while (set.has(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
   return n;
+}
+
+export const DAILY_REWARD = 150;
+export const COMBO_BONUS = 5; // per chained word, when words land within COMBO_MS of each other
+export const COMBO_MS = 25000;
+
+/** Same hard puzzle for everyone on a given day: a level number from the calendar. */
+export function dailyLevel(d = new Date()) {
+  const day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  return 101 + (day * 7919) % 899;
 }
 
 export const HINT_COST = 100;

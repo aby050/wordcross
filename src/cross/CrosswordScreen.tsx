@@ -4,7 +4,7 @@ import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { cellsOf, Dir, Entry, generate, difficulty } from './generate';
 import { THEME_NAMES, ThemeKey } from './clues';
 import { Award, checkAwards, trackStreak } from './awards';
-import { dayKey, earnInk, getGame, HINT_COST, INK_HINT, THEME_BONUS, recordWords, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
+import { COMBO_BONUS, COMBO_MS, DAILY_REWARD, dayKey, earnInk, getGame, HINT_COST, INK_HINT, THEME_BONUS, recordWords, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
 import { themeById } from './themes';
 import { Scenery } from './Scenery';
 import { Confetti, CountUp, F, Toast } from '../ui';
@@ -14,7 +14,7 @@ import { play } from '../sound';
 const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 const ERASERS = 3;
 
-export default function CrosswordScreen({ level, onBack, onNext }: { level: number; onBack: () => void; onNext: () => void }) {
+export default function CrosswordScreen({ level, onBack, onNext, daily }: { level: number; onBack: () => void; onNext: () => void; daily?: boolean }) {
   const game = useGame();
   const t = themeById(game.theme);
   const { width } = useWindowDimensions();
@@ -49,6 +49,8 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
   const [toast, setToast] = useState<string | null>(null);
   const [stuck, setStuck] = useState(false);
   const [won, setWon] = useState(false);
+  const combo = useRef(0), lastWord = useRef(0), comboCoins = useRef(0), startedAt = useRef(Date.now());
+  const [stars, setStars] = useState(1);
 
   // Stats are buffered and written once, so typing doesn't hammer storage.
   const pending = useRef({ typed: 0, correct: 0, seconds: 0 });
@@ -100,6 +102,10 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
       setSweepId((n) => n + 1);
       setTimeout(() => setFlash(new Map()), 1400);
       recordWords(newly);
+      const now = Date.now();
+      combo.current = now - lastWord.current < COMBO_MS ? combo.current + newly.length : 0;
+      lastWord.current = now;
+      comboCoins.current += combo.current * COMBO_BONUS;
       const gain = earnInk(newly);
       const got = checkAwards();
       say(got.length ? `Award: ${got.map((a) => a.title).join(', ')} +${got.reduce((n, a) => n + a.reward, 0)}` : `+${gain} letter points`);
@@ -192,7 +198,11 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
   const hintsUsed = useRef(0);
   const [reward, setReward] = useState(LEVEL_REWARD);
   const win = () => {
-    const reward = LEVEL_REWARD + (hintsUsed.current ? 0 : NO_HINT_BONUS);
+    const secs = (Date.now() - startedAt.current) / 1000;
+    const st = 1 + (hintsUsed.current ? 0 : 1) + (secs < entries.length * 30 ? 1 : 0);
+    setStars(st);
+    const firstDaily = !!daily && !getGame().dailyDone.includes(dayKey());
+    const reward = LEVEL_REWARD + (hintsUsed.current ? 0 : NO_HINT_BONUS) + comboCoins.current + (st === 3 ? 20 : 0) + (firstDaily ? DAILY_REWARD : 0);
     setReward(reward);
     setWon(true);
     play('win');
@@ -200,7 +210,8 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
     updateGame((s) => ({
       coins: s.coins + reward,
       solved: s.solved + 1,
-      level: Math.max(s.level, level + 1),
+      level: daily ? s.level : Math.max(s.level, level + 1),
+      dailyDone: daily && !s.dailyDone.includes(dayKey()) ? [...s.dailyDone, dayKey()] : s.dailyDone,
       days: s.days.includes(dayKey()) ? s.days : [...s.days, dayKey()],
       noHint: s.noHint + (hintsUsed.current ? 0 : 1),
     }));
@@ -269,7 +280,7 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
       <View style={s.header}>
         <Pressable onPress={onBack} hitSlop={12}><Icon name="arrow-left" size={26} color={t.headerText} /></Pressable>
         <View style={{ alignItems: 'center' }}>
-          <Text style={[s.level, { color: t.headerText }]}>Level {level}</Text>
+          <Text style={[s.level, { color: t.headerText }]}>{daily ? 'Daily Challenge' : `Level ${level}`}</Text>
           <Text style={[s.diff, { color: t.headerText }]}>{difficulty(level).label} · {entries.filter((e) => solvedEntry(e)).length}/{entries.length} words</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -391,21 +402,26 @@ export default function CrosswordScreen({ level, onBack, onNext }: { level: numb
               <Rays size={230} />
               <FadeIn delay={600} scale={0.5} y={0} duration={650}><Icon name="trophy" size={72} color="#F5B301" /></FadeIn>
             </View>
-            <Text style={s.winTitle}>Level {level} complete!</Text>
+            <Text style={s.winTitle}>{daily ? 'Daily Challenge done!' : `Level ${level} complete!`}</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {[1, 2, 3].map((n) => <FadeIn key={n} delay={500 + n * 220} scale={0.4} y={0}><Icon name={n <= stars ? 'star' : 'star-outline'} size={34} color="#F5B301" /></FadeIn>)}
+            </View>
+            {comboCoins.current > 0 && <Text style={s.noHint}>Combo bonus +{comboCoins.current}</Text>}
+            {stars === 3 && <Text style={s.noHint}>3 stars +20</Text>}
             {newAwards.map((a) => (
               <View key={a.id} style={s.awardRow}><Icon name={a.icon as any} size={20} color={a.color} /><Text style={s.awardText}>Award: {a.title} +{a.reward}</Text></View>
             ))}
             {puzzle.theme && <Text style={s.noHint}>Theme: {THEME_NAMES[puzzle.theme]}{guess === 'right' ? ` · +${THEME_BONUS} coins` : ''}</Text>}
-            {reward > LEVEL_REWARD && <Text style={s.noHint}>No-hint bonus +{NO_HINT_BONUS}</Text>}
+            {!hintsUsed.current && <Text style={s.noHint}>No-hint bonus +{NO_HINT_BONUS}</Text>}
             <FadeIn delay={900} y={10} style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
               <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
               <Text style={[s.coinText, { color: '#8A5A00' }]}>+</Text>
               <WinCoins amount={reward} />
             </FadeIn>
             <Pressable onPress={onNext} style={s.nextBtn}>
-              <Text style={s.nextText}>Next Level</Text>
+              <Text style={s.nextText}>{daily ? 'Home' : 'Next Level'}</Text>
             </Pressable>
-            <Pressable onPress={onBack}><Text style={s.homeLink}>Home</Text></Pressable>
+            {!daily && <Pressable onPress={onBack}><Text style={s.homeLink}>Home</Text></Pressable>}
           </FadeIn>
           <Confetti />
         </FadeIn>
