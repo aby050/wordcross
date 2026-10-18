@@ -181,5 +181,5 @@ export function Ambient({ theme, count = 18, width, height }: { theme: ThemeId; 
 
 /** Wraps a whole screen: fades and lifts it in on mount. */
 export function ScreenIn({ children }: { children: ReactNode }) {
-  return <FadeIn y={10} duration={380} style={{ flex: 1 }}>{children}</FadeIn>;
+  return <FadeIn y={6} duration={220} style={{ flex: 1 }}>{children}</FadeIn>;
 }

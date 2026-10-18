@@ -84,6 +84,7 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
       if (entryAt(r, c, other)) setDir(other);
       return;
     }
+    play('pickup');
     setSel([r, c]);
     if (!entryAt(r, c, dir)) setDir(dir === 'across' ? 'down' : 'across');
   };
@@ -122,6 +123,7 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
       if (got.length) setNewAwards((n) => [...n, ...got]);
       play('word');
     }
+    if (touched.some((e) => fullEntry(e, next) && !solvedEntry(e, next))) play('wrong');
     if (entries.every((e) => solvedEntry(e, next))) win();
   };
 
@@ -354,7 +356,7 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
                     style={[s.cell, { width: cell, height: cell, backgroundColor: bg }, stuck && nudge(r, c) && { borderWidth: 3, borderColor: t.wrong }]}>
                     {flash.has(k(r, c)) && <Sweep key={sweepId} index={flash.get(k(r, c))!} color={t.selected} />}
                     {numbers.has(k(r, c)) && <Text style={[s.num, { color: t.number, fontSize: cell * 0.22 }]}>{numbers.get(k(r, c))}</Text>}
-                    {letter ? <Letter key={letter} ch={letter} size={cell} color={bad ? t.wrong : t.cellText} pulse={flash.has(k(r, c)) ? flash.get(k(r, c))! : -1} sweepId={sweepId} /> : null}
+                    {letter ? <Letter key={letter} bad={!!bad} ch={letter} size={cell} color={bad ? t.wrong : t.cellText} pulse={flash.has(k(r, c)) ? flash.get(k(r, c))! : -1} sweepId={sweepId} /> : null}
                   </Pressable>
                   </Animated.View>
                 );
@@ -458,11 +460,20 @@ function WinCoins({ amount }: { amount: number }) {
 }
 
 /** Letters ease in when typed, and lift gently as the solve sweep passes over them. */
-function Letter({ ch, size, color, pulse, sweepId }: { ch: string; size: number; color: string; pulse: number; sweepId: number }) {
+function Letter({ ch, size, color, pulse, sweepId, bad }: { ch: string; size: number; color: string; pulse: number; sweepId: number; bad?: boolean }) {
   const a = useRef(new Animated.Value(0)).current;
   const lift = useRef(new Animated.Value(0)).current;
   const nd = Platform.OS !== 'web';
-  useEffect(() => { Animated.timing(a, { toValue: 1, duration: 180, easing: EASE, useNativeDriver: nd }).start(); }, []);
+  const pop = useRef(new Animated.Value(0.6)).current;
+  const shake = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(a, { toValue: 1, duration: 120, easing: EASE, useNativeDriver: nd }).start();
+    Animated.spring(pop, { toValue: 1, tension: 260, friction: 9, useNativeDriver: nd }).start();
+  }, []);
+  useEffect(() => {
+    if (!bad) return;
+    Animated.sequence([-4, 4, -3, 3, 0].map((v) => Animated.timing(shake, { toValue: v, duration: 50, useNativeDriver: nd }))).start();
+  }, [bad]);
   useEffect(() => {
     if (pulse < 0) return;
     Animated.sequence([
@@ -474,7 +485,8 @@ function Letter({ ch, size, color, pulse, sweepId }: { ch: string; size: number;
   return (
     <Animated.Text style={[s.letter, { fontSize: size * 0.56, lineHeight: size * 0.8, color, opacity: a,
       transform: [
-        { scale: Animated.add(a.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }), lift.interpolate({ inputRange: [0, 1], outputRange: [0, 0.12] })) },
+        { scale: Animated.add(pop, lift.interpolate({ inputRange: [0, 1], outputRange: [0, 0.12] })) },
+        { translateX: shake },
         { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
       ] }]}>{ch}</Animated.Text>
   );
