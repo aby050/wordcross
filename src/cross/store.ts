@@ -76,6 +76,8 @@ export function streak(days: string[]) {
   return n;
 }
 
+/** Daily login coins grow with the play streak, up to a week's worth. */
+export const dailyBonus = () => DAILY_BONUS + 25 * Math.min(streak(state.days), 7);
 export const DAILY_REWARD = 150;
 export const COMBO_BONUS = 5; // per chained word, when words land within COMBO_MS of each other
 export const COMBO_MS = 25000;
@@ -106,7 +108,7 @@ export function claimDailyBonus() {
   if (state.bonusDay === dayKey()) return false;
   // A brand-new player already starts with coins; the bonus begins tomorrow.
   if (!state.bonusDay) { updateGame({ bonusDay: dayKey() }); return false; }
-  updateGame((s) => ({ coins: s.coins + DAILY_BONUS, bonusDay: dayKey() }));
+  updateGame((s) => ({ coins: s.coins + dailyBonus(), bonusDay: dayKey() }));
   return true;
 }
 

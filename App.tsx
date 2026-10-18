@@ -18,7 +18,7 @@ import CrosswordScreen from './src/cross/CrosswordScreen';
 import ThemesScreen from './src/cross/ThemesScreen';
 import StatsScreen from './src/cross/StatsScreen';
 import WordBookScreen from './src/cross/WordBookScreen';
-import { claimDailyBonus, dailyLevel, DAILY_BONUS, ready, updateGame, useGame } from './src/cross/store';
+import { claimDailyBonus, dailyBonus, dailyLevel, DAILY_BONUS, ready, updateGame, useGame } from './src/cross/store';
 import SettingsScreen from './src/cross/SettingsScreen';
 import Tutorial from './src/cross/Tutorial';
 import { Toast } from './src/ui';
@@ -38,13 +38,14 @@ export default function App() {
   const arrowMenu = () => setScreen({ kind: 'arrowMenu' });
   useEffect(() => { setMuted(game.muted); }, [game.muted]);
   useEffect(() => { setHaptics(game.haptics); }, [game.haptics]);
+  const [replayN, setReplayN] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [tutorial, setTutorial] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     ready.then(() => {
       setLoaded(true);
-      if (claimDailyBonus()) { setToast(`Daily bonus: +${DAILY_BONUS} coins`); setTimeout(() => setToast(null), 2600); }
+      if (claimDailyBonus()) { setToast(`Welcome back! Daily bonus +${dailyBonus()} coins`); setTimeout(() => setToast(null), 2600); }
     });
   }, []);
   const showTutorial = tutorial || (loaded && !game.seenTutorial && screen.kind === 'home');
@@ -63,7 +64,7 @@ export default function App() {
       {screen.kind === 'home' && <HomeScreen go={(n) => setScreen(
         n === 'play' ? { kind: 'play', level: game.level } : n === 'daily' ? { kind: 'play', level: dailyLevel(), daily: true } : n === 'arrow' ? { kind: 'arrowMenu' }
           : n === 'battle' ? { kind: 'battle', id: Date.now() } : { kind: n })} />}
-      {screen.kind === 'play' && <CrosswordScreen key={`${screen.level}${screen.daily}`} level={screen.level} daily={screen.daily} onBack={home}
+      {screen.kind === 'play' && <CrosswordScreen key={`${screen.level}${screen.daily}${replayN}`} onReplay={() => setReplayN((n) => n + 1)} level={screen.level} daily={screen.daily} onBack={home}
         onNext={() => (screen.daily ? home() : setScreen({ kind: 'play', level: screen.level + 1 }))} />}
       {screen.kind === 'themes' && <ThemesScreen onBack={home} />}
       {screen.kind === 'stats' && <StatsScreen onBack={home} />}

@@ -14,7 +14,7 @@ import { play } from '../sound';
 const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 const ERASERS = 3;
 
-export default function CrosswordScreen({ level, onBack, onNext, daily }: { level: number; onBack: () => void; onNext: () => void; daily?: boolean }) {
+export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay }: { level: number; onBack: () => void; onNext: () => void; daily?: boolean; onReplay: () => void }) {
   const game = useGame();
   const t = themeById(game.theme);
   const { width } = useWindowDimensions();
@@ -51,6 +51,9 @@ export default function CrosswordScreen({ level, onBack, onNext, daily }: { leve
   const [won, setWon] = useState(false);
   const combo = useRef(0), lastWord = useRef(0), comboCoins = useRef(0), startedAt = useRef(Date.now());
   const [stars, setStars] = useState(1);
+  const [comboShow, setComboShow] = useState(0);
+  const comboAnim = useRef(new Animated.Value(0)).current;
+  const comboTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Stats are buffered and written once, so typing doesn't hammer storage.
   const pending = useRef({ typed: 0, correct: 0, seconds: 0 });
@@ -106,6 +109,13 @@ export default function CrosswordScreen({ level, onBack, onNext, daily }: { leve
       combo.current = now - lastWord.current < COMBO_MS ? combo.current + newly.length : 0;
       lastWord.current = now;
       comboCoins.current += combo.current * COMBO_BONUS;
+      if (combo.current > 0) {
+        setComboShow(combo.current + 1);
+        comboAnim.setValue(1);
+        Animated.timing(comboAnim, { toValue: 0, duration: COMBO_MS, easing: Easing.linear, useNativeDriver: false }).start();
+      } else setComboShow(0);
+      clearTimeout(comboTimer.current);
+      comboTimer.current = setTimeout(() => setComboShow(0), COMBO_MS);
       const gain = earnInk(newly);
       const got = checkAwards();
       say(got.length ? `Award: ${got.map((a) => a.title).join(', ')} +${got.reduce((n, a) => n + a.reward, 0)}` : `+${gain} letter points`);
@@ -294,6 +304,13 @@ export default function CrosswordScreen({ level, onBack, onNext, daily }: { leve
           </View>
         </View>
       </View>
+      {comboShow > 1 && !won && (
+        <FadeIn y={-8} duration={250} style={s.comboPill}>
+          <Icon name="fire" size={16} color="#FFE14D" />
+          <Text style={s.comboText}>Combo x{comboShow}  +{(comboShow - 1) * COMBO_BONUS}</Text>
+          <View style={s.comboTrack}><Animated.View style={[s.comboFill, { width: comboAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
+        </FadeIn>
+      )}
       {(puzzle.theme || game.ink > 0) && (
         <View style={s.subRow}>
           {puzzle.theme && guess !== 'right' && guess !== 'wrong' && !won ? (
@@ -421,6 +438,7 @@ export default function CrosswordScreen({ level, onBack, onNext, daily }: { leve
             <Pressable onPress={onNext} style={s.nextBtn}>
               <Text style={s.nextText}>{daily ? 'Home' : 'Next Level'}</Text>
             </Pressable>
+            {!daily && stars < 3 && <Pressable onPress={onReplay}><Text style={s.homeLink}>Replay for 3 stars</Text></Pressable>}
             {!daily && <Pressable onPress={onBack}><Text style={s.homeLink}>Home</Text></Pressable>}
           </FadeIn>
           <Confetti />
@@ -499,6 +517,10 @@ function Power({ color, icon, cost, coin, onPress, label, disabled }: {
 const s = StyleSheet.create({
   awardRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF4D6', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5 },
   awardText: { fontFamily: F.bold, fontSize: 13, color: '#8A5A00' },
+  comboPill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F97316', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 4, overflow: 'hidden' },
+  comboText: { fontFamily: F.heavy, color: '#fff', fontSize: 14 },
+  comboTrack: { width: 46, height: 5, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.25)', overflow: 'hidden' },
+  comboFill: { height: 5, backgroundColor: '#FFE14D' },
   subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 2 },
   themeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 14, paddingHorizontal: 11, paddingVertical: 4 },
   themeChipText: { fontFamily: F.bold, fontSize: 13, color: '#fff' },
