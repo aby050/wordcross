@@ -221,6 +221,7 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
       coins: s.coins + reward,
       solved: s.solved + 1,
       level: daily ? s.level : Math.max(s.level, level + 1),
+      stars: daily ? s.stars : { ...s.stars, [level]: Math.max(s.stars[level] ?? 0, st) },
       dailyDone: daily && !s.dailyDone.includes(dayKey()) ? [...s.dailyDone, dayKey()] : s.dailyDone,
       days: s.days.includes(dayKey()) ? s.days : [...s.days, dayKey()],
       noHint: s.noHint + (hintsUsed.current ? 0 : 1),

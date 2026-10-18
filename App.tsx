@@ -15,6 +15,7 @@ import { setHaptics, setMuted } from './src/sound';
 import { isUnlocked, useStars } from './src/progress';
 import HomeScreen from './src/cross/HomeScreen';
 import CrosswordScreen from './src/cross/CrosswordScreen';
+import LevelMapScreen from './src/cross/LevelMapScreen';
 import ThemesScreen from './src/cross/ThemesScreen';
 import StatsScreen from './src/cross/StatsScreen';
 import WordBookScreen from './src/cross/WordBookScreen';
@@ -25,7 +26,7 @@ import { Toast } from './src/ui';
 import { ScreenIn } from './src/cross/motion';
 
 type Screen =
-  | { kind: 'home' } | { kind: 'play'; level: number; daily?: boolean } | { kind: 'themes' } | { kind: 'stats' } | { kind: 'book' } | { kind: 'settings' }
+  | { kind: 'home' } | { kind: 'play'; level: number; daily?: boolean } | { kind: 'themes' } | { kind: 'map' } | { kind: 'stats' } | { kind: 'book' } | { kind: 'settings' }
   | { kind: 'arrowMenu' } | { kind: 'arrow'; level: number; id?: number } | { kind: 'battle'; id: number };
 
 export default function App() {
@@ -53,7 +54,7 @@ export default function App() {
 
   if (!fontsLoaded) return <View style={[s.root, { backgroundColor: '#2F3FD6' }]} />;
 
-  const dark = screen.kind === 'home' || screen.kind === 'themes' || screen.kind === 'stats' || screen.kind === 'book' || screen.kind === 'play' || screen.kind === 'settings'
+  const dark = screen.kind === 'home' || screen.kind === 'themes' || screen.kind === 'map' || screen.kind === 'stats' || screen.kind === 'book' || screen.kind === 'play' || screen.kind === 'settings'
     || screen.kind === 'arrowMenu' || screen.kind === 'arrow' || screen.kind === 'battle';
 
   return (
@@ -66,6 +67,7 @@ export default function App() {
           : n === 'battle' ? { kind: 'battle', id: Date.now() } : { kind: n })} />}
       {screen.kind === 'play' && <CrosswordScreen key={`${screen.level}${screen.daily}${replayN}`} onReplay={() => setReplayN((n) => n + 1)} level={screen.level} daily={screen.daily} onBack={home}
         onNext={() => (screen.daily ? home() : setScreen({ kind: 'play', level: screen.level + 1 }))} />}
+      {screen.kind === 'map' && <LevelMapScreen onBack={home} onPlay={(level) => setScreen({ kind: 'play', level })} />}
       {screen.kind === 'themes' && <ThemesScreen onBack={home} />}
       {screen.kind === 'stats' && <StatsScreen onBack={home} />}
       {screen.kind === 'book' && <WordBookScreen onBack={home} />}

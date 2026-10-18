@@ -27,6 +27,8 @@ export type GameState = {
   themeWins: number; // level themes guessed right
   bestStreak: number; // longest run of consecutive play days
   dailyDone: string[]; // days the Daily Challenge was finished
+  stars: Record<number, number>; // best stars (1-3) per crossword level
+  chests: number[]; // milestone chests opened (chest k = levels 1..10k done)
 };
 
 /** One solved word: how often it came up and how often recall failed in the quiz. */
@@ -34,7 +36,7 @@ export type BookWord = { clue: string; n: number; miss: number; last: string };
 
 const DEFAULT: GameState = {
   level: 1, coins: 250, solved: 0, playSeconds: 0, typed: 0, correct: 0, theme: 'classic', days: [], muted: false, input: 'letters',
-  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0, awards: [], noHint: 0, themeWins: 0, bestStreak: 0, dailyDone: [],
+  haptics: true, seenTutorial: false, bonusDay: '', book: {}, ink: 0, awards: [], noHint: 0, themeWins: 0, bestStreak: 0, dailyDone: [], stars: {}, chests: [],
 };
 
 let state: GameState = DEFAULT;
@@ -78,6 +80,8 @@ export function streak(days: string[]) {
 
 /** Daily login coins grow with the play streak, up to a week's worth. */
 export const dailyBonus = () => DAILY_BONUS + 25 * Math.min(streak(state.days), 7);
+/** Milestone chest after every 10 levels; grows as the map goes on. */
+export const chestReward = (k: number) => ({ coins: 100 + 25 * k, ink: 20 + 5 * k });
 export const DAILY_REWARD = 150;
 export const COMBO_BONUS = 5; // per chained word, when words land within COMBO_MS of each other
 export const COMBO_MS = 25000;
