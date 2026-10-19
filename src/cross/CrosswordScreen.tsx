@@ -6,15 +6,16 @@ import { THEME_NAMES, ThemeKey } from './clues';
 import { Award, checkAwards, trackStreak } from './awards';
 import { COMBO_BONUS, COMBO_MS, DAILY_REWARD, dayKey, earnInk, getGame, HINT_COST, INK_HINT, THEME_BONUS, recordWords, LEVEL_REWARD, NO_HINT_BONUS, updateGame, useGame } from './store';
 import { themeById } from './themes';
-import { Scenery } from './Scenery';
-import { Confetti, CountUp, F, Toast } from '../ui';
-import { EASE, FadeIn, Rays } from './motion';
+import { F, Toast } from '../ui';
+import { EASE, FadeIn } from './motion';
+import { Art, BackButton, fmt, glass, Stat } from './chrome';
+import { RewardLine, WinCard } from './WinCard';
 import { play } from '../sound';
 
 const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 const ERASERS = 3;
 
-export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay }: { level: number; onBack: () => void; onNext: () => void; daily?: boolean; onReplay: () => void }) {
+export default function CrosswordScreen({ level, onBack, onNext, onMap, daily, onReplay }: { level: number; onBack: () => void; onNext: () => void; onMap: () => void; daily?: boolean; onReplay: () => void }) {
   const game = useGame();
   const t = themeById(game.theme);
   const { width } = useWindowDimensions();
@@ -22,6 +23,8 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
   const { size, solution, entries } = puzzle;
   const [newAwards, setNewAwards] = useState<Award[]>([]);
   const [guess, setGuess] = useState<'idle' | 'open' | 'right' | 'wrong'>('idle');
+  const guessRef = useRef(guess);
+  guessRef.current = guess;
   const themeOptions = useMemo(() => {
     if (!puzzle.theme) return [] as ThemeKey[];
     const keys = Object.keys(THEME_NAMES) as ThemeKey[];
@@ -208,14 +211,22 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
   }, [fill, sel, won]);
 
   const hintsUsed = useRef(0);
-  const [reward, setReward] = useState(LEVEL_REWARD);
+  const [lines, setLines] = useState<RewardLine[]>([]);
   const win = () => {
     const secs = (Date.now() - startedAt.current) / 1000;
     const st = 1 + (hintsUsed.current ? 0 : 1) + (secs < entries.length * 30 ? 1 : 0);
     setStars(st);
     const firstDaily = !!daily && !getGame().dailyDone.includes(dayKey());
-    const reward = LEVEL_REWARD + (hintsUsed.current ? 0 : NO_HINT_BONUS) + comboCoins.current + (st === 3 ? 20 : 0) + (firstDaily ? DAILY_REWARD : 0);
-    setReward(reward);
+    const parts: RewardLine[] = [
+      { label: daily ? 'Daily Challenge' : 'Level complete', amount: LEVEL_REWARD },
+      { label: 'Daily reward', amount: firstDaily ? DAILY_REWARD : 0 },
+      { label: 'No hints used', amount: hintsUsed.current ? 0 : NO_HINT_BONUS },
+      { label: 'Combo bonus', amount: comboCoins.current },
+      { label: '3-star bonus', amount: st === 3 ? 20 : 0 },
+    ].filter((l) => l.amount > 0);
+    const reward = parts.reduce((n, l) => n + l.amount, 0);
+    // The theme bonus was paid when it was guessed; list it so the card shows everything this level earned.
+    setLines(guessRef.current === 'right' ? [...parts, { label: 'Theme guessed', amount: THEME_BONUS }] : parts);
     setWon(true);
     play('win');
     flushStats();
@@ -289,44 +300,31 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
 
   return (
     <View style={{ flex: 1 }}>
-      <Scenery theme={t.id} />
       <View style={s.header}>
-        <Pressable onPress={onBack} hitSlop={12}><Icon name="arrow-left" size={26} color={t.headerText} /></Pressable>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={[s.level, { color: t.headerText }]}>{daily ? 'Daily Challenge' : `Level ${level}`}</Text>
-          <Text style={[s.diff, { color: t.headerText }]}>{difficulty(level).label} · {entries.filter((e) => solvedEntry(e)).length}/{entries.length} words</Text>
+        <View style={s.side}><BackButton onPress={onBack} /></View>
+        <View style={s.headMid}>
+          <Text style={[s.level, { color: t.headerText }]} numberOfLines={1} adjustsFontSizeToFit>{daily ? 'Daily Challenge' : `Level ${level}`}</Text>
+          <Text style={[s.diff, { color: t.headerText }]} numberOfLines={1}>{difficulty(level).label} · {entries.filter((e) => solvedEntry(e)).length}/{entries.length} words</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Pressable onPress={() => updateGame({ input: game.input === 'keyboard' ? 'letters' : 'keyboard' })} hitSlop={8}
-            style={s.modeBtn} accessibilityLabel={game.input === 'keyboard' ? 'Use letter tiles' : 'Use full keyboard'}>
-            <Icon name={game.input === 'keyboard' ? 'view-grid-outline' : 'keyboard-outline'} size={20} color="#fff" />
+        <View style={[s.side, { alignItems: 'flex-end' }]}><Stat art="coin" value={fmt(game.coins)} label={`${game.coins} coins`} /></View>
+      </View>
+      <View style={s.subRow}>
+        {puzzle.theme && guess !== 'right' && guess !== 'wrong' && !won ? (
+          <Pressable onPress={() => setGuess(guess === 'open' ? 'idle' : 'open')} style={s.themeChip}>
+            <Icon name="help-circle-outline" size={16} color="#fff" />
+            <Text style={s.themeChipText}>Guess the theme +{THEME_BONUS}</Text>
           </Pressable>
-          <View style={s.coins}>
-            <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
-            <Text style={s.coinText}>{game.coins}</Text>
-          </View>
+        ) : puzzle.theme ? (
+          <View style={s.themeChip}><Icon name="tag-outline" size={15} color="#fff" /><Text style={s.themeChipText}>{THEME_NAMES[puzzle.theme]}</Text></View>
+        ) : <View />}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {game.ink > 0 && <View style={s.themeChip}><Art name="glow" size={16} /><Text style={s.themeChipText}>{game.ink} pts</Text></View>}
+          <Pressable onPress={() => updateGame({ input: game.input === 'keyboard' ? 'letters' : 'keyboard' })} hitSlop={6}
+            style={s.themeChip} accessibilityLabel={game.input === 'keyboard' ? 'Use letter tiles' : 'Use full keyboard'}>
+            <Icon name={game.input === 'keyboard' ? 'view-grid-outline' : 'keyboard-outline'} size={16} color="#fff" />
+          </Pressable>
         </View>
       </View>
-      {comboShow > 1 && !won && (
-        <FadeIn y={-8} duration={250} style={s.comboPill}>
-          <Icon name="fire" size={16} color="#FFE14D" />
-          <Text style={s.comboText}>Combo x{comboShow}  +{(comboShow - 1) * COMBO_BONUS}</Text>
-          <View style={s.comboTrack}><Animated.View style={[s.comboFill, { width: comboAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
-        </FadeIn>
-      )}
-      {(puzzle.theme || game.ink > 0) && (
-        <View style={s.subRow}>
-          {puzzle.theme && guess !== 'right' && guess !== 'wrong' && !won ? (
-            <Pressable onPress={() => setGuess(guess === 'open' ? 'idle' : 'open')} style={s.themeChip}>
-              <Icon name="help-circle" size={16} color="#fff" />
-              <Text style={s.themeChipText}>Guess the theme +{THEME_BONUS}</Text>
-            </Pressable>
-          ) : puzzle.theme ? (
-            <View style={s.themeChip}><Icon name="tag" size={14} color="#fff" /><Text style={s.themeChipText}>{THEME_NAMES[puzzle.theme]}</Text></View>
-          ) : <View />}
-          <View style={s.themeChip}><Icon name="star-four-points" size={14} color="#FFE14D" /><Text style={s.themeChipText}>{game.ink} pts</Text></View>
-        </View>
-      )}
       {guess === 'open' && (
         <View style={s.guessRow}>
           {themeOptions.map((k) => (
@@ -335,7 +333,14 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
         </View>
       )}
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)}>
+      <View style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' }} onLayout={(e) => setAreaH(e.nativeEvent.layout.height)}>
+        {comboShow > 1 && !won && (
+        <FadeIn y={-8} duration={250} style={s.comboPill}>
+          <Art name="fire" size={18} />
+          <Text style={s.comboText}>Combo x{comboShow}  +{(comboShow - 1) * COMBO_BONUS}</Text>
+          <View style={s.comboTrack}><Animated.View style={[s.comboFill, { width: comboAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
+        </FadeIn>
+      )}
         <View style={[s.board, { width: gridW, backgroundColor: t.board, padding: 4, gap }]}>
           {solution.map((row, r) => (r < r0 || r > r1 ? null : (
             <View key={r} style={{ flexDirection: 'row', gap }}>
@@ -416,47 +421,12 @@ export default function CrosswordScreen({ level, onBack, onNext, daily, onReplay
       </View>
 
       {won && (
-        <FadeIn y={0} duration={400} style={s.overlay}>
-          <FadeIn delay={250} y={40} scale={0.92} duration={700} style={s.winCard}>
-            <View style={{ width: 140, height: 110, alignItems: 'center', justifyContent: 'center' }}>
-              <Rays size={230} />
-              <FadeIn delay={600} scale={0.5} y={0} duration={650}><Icon name="trophy" size={72} color="#F5B301" /></FadeIn>
-            </View>
-            <Text style={s.winTitle}>{daily ? 'Daily Challenge done!' : `Level ${level} complete!`}</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {[1, 2, 3].map((n) => <FadeIn key={n} delay={500 + n * 220} scale={0.4} y={0}><Icon name={n <= stars ? 'star' : 'star-outline'} size={34} color="#F5B301" /></FadeIn>)}
-            </View>
-            {comboCoins.current > 0 && <Text style={s.noHint}>Combo bonus +{comboCoins.current}</Text>}
-            {stars === 3 && <Text style={s.noHint}>3 stars +20</Text>}
-            {newAwards.map((a) => (
-              <View key={a.id} style={s.awardRow}><Icon name={a.icon as any} size={20} color={a.color} /><Text style={s.awardText}>Award: {a.title} +{a.reward}</Text></View>
-            ))}
-            {puzzle.theme && <Text style={s.noHint}>Theme: {THEME_NAMES[puzzle.theme]}{guess === 'right' ? ` · +${THEME_BONUS} coins` : ''}</Text>}
-            {!hintsUsed.current && <Text style={s.noHint}>No-hint bonus +{NO_HINT_BONUS}</Text>}
-            <FadeIn delay={900} y={10} style={[s.coins, { alignSelf: 'center', backgroundColor: '#FFF4D6' }]}>
-              <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
-              <Text style={[s.coinText, { color: '#8A5A00' }]}>+</Text>
-              <WinCoins amount={reward} />
-            </FadeIn>
-            <Pressable onPress={onNext} style={s.nextBtn}>
-              <Text style={s.nextText}>{daily ? 'Home' : 'Next Level'}</Text>
-            </Pressable>
-            {!daily && stars < 3 && <Pressable onPress={onReplay}><Text style={s.homeLink}>Replay for 3 stars</Text></Pressable>}
-            {!daily && <Pressable onPress={onBack}><Text style={s.homeLink}>Home</Text></Pressable>}
-          </FadeIn>
-          <Confetti />
-        </FadeIn>
+        <WinCard level={level} daily={daily} stars={stars} lines={lines} awards={newAwards}
+          onNext={onNext} onReplay={onReplay} onHome={onBack} onMap={onMap} />
       )}
       <Toast text={toast} />
     </View>
   );
-}
-
-/** Coin reward rolling up from 0 once the card is in. */
-function WinCoins({ amount }: { amount: number }) {
-  const [v, setV] = useState(0);
-  useEffect(() => { const id = setTimeout(() => setV(amount), 950); return () => clearTimeout(id); }, []);
-  return <CountUp value={v} style={[s.coinText, { color: '#8A5A00' }]} />;
 }
 
 /** Letters ease in when typed, and lift gently as the solve sweep passes over them. */
@@ -517,7 +487,7 @@ function Power({ color, icon, cost, coin, onPress, label, disabled }: {
         <Icon name={icon} size={22} color="#fff" />
         {cost !== '' && (
           <View style={s.powerCost}>
-            {coin && <View style={[s.coinDot, { width: 11, height: 11, borderWidth: 1 }]} />}
+            {coin && <Art name="coin" size={12} />}
             <Text style={s.powerCostText}>{cost}</Text>
           </View>
         )}
@@ -528,24 +498,22 @@ function Power({ color, icon, cost, coin, onPress, label, disabled }: {
 }
 
 const s = StyleSheet.create({
-  awardRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF4D6', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5 },
-  awardText: { fontFamily: F.bold, fontSize: 13, color: '#8A5A00' },
-  comboPill: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F97316', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 4, overflow: 'hidden' },
+  comboPill: { position: 'absolute', top: 2, zIndex: 5, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F97316', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 4, overflow: 'hidden' },
   comboText: { fontFamily: F.heavy, color: '#fff', fontSize: 14 },
   comboTrack: { width: 46, height: 5, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.25)', overflow: 'hidden' },
   comboFill: { height: 5, backgroundColor: '#FFE14D' },
-  subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 2 },
-  themeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 14, paddingHorizontal: 11, paddingVertical: 4 },
+  subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 6 },
+  themeChip: { ...glass, flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, minWidth: 32, justifyContent: 'center', borderRadius: 16, paddingHorizontal: 10 },
   themeChipText: { fontFamily: F.bold, fontSize: 13, color: '#fff' },
   guessRow: { position: 'absolute', top: 96, left: 0, right: 0, zIndex: 10, flexDirection: 'row', gap: 8, justifyContent: 'center', paddingHorizontal: 12 },
   guessBtn: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: 3, borderBottomColor: '#C9D2E3' },
   guessText: { fontFamily: F.heavy, fontSize: 14, color: '#1F2640' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 4, paddingBottom: 2 },
-  level: { fontFamily: F.heavy, fontSize: 22, textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  diff: { fontFamily: F.regular, fontSize: 12, opacity: 0.75, marginTop: -4 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, paddingBottom: 8 },
+  side: { width: 100 },
+  headMid: { flex: 1, alignItems: 'center' },
+  level: { fontFamily: F.black, fontSize: 20, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  diff: { fontFamily: F.bold, fontSize: 12.5, opacity: 0.8 },
   coins: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 18, paddingLeft: 4, paddingRight: 12, paddingVertical: 3 },
-  coinDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#F5B301', borderWidth: 2, borderColor: '#FFD54A', alignItems: 'center', justifyContent: 'center' },
-  coinGlyph: { color: '#fff', fontFamily: F.heavy, fontSize: 12, lineHeight: 16 },
   coinText: { fontFamily: F.heavy, fontSize: 16, color: '#3A4257' },
   board: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
   cell: { borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
@@ -555,10 +523,9 @@ const s = StyleSheet.create({
   clueRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', borderRadius: 16, marginHorizontal: 6, paddingVertical: 5, alignSelf: 'center', width: '96%', maxWidth: 560 },
   arrow: { paddingHorizontal: 8 },
   clueHead: { fontFamily: F.heavy, fontSize: 16, color: '#1F2640' },
-  clue: { fontFamily: F.heavy, fontSize: 16, lineHeight: 20, color: '#1F2640', textAlign: 'center', paddingHorizontal: 4 },
+  clue: { fontFamily: F.heavy, fontSize: 16, lineHeight: 22, color: '#1F2640', textAlign: 'center', paddingHorizontal: 4 },
   dirChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#2F3FD6', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 1 },
   dirText: { fontFamily: F.bold, fontSize: 11.5, color: '#6B7280' },
-  modeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
   bankWrap: { alignItems: 'center', gap: 10, minHeight: 130, justifyContent: 'center' },
   bank: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, paddingHorizontal: 14 },
   bankTile: { borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
@@ -579,11 +546,4 @@ const s = StyleSheet.create({
   power: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
   powerCost: { position: 'absolute', top: -7, right: -9, flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff', borderRadius: 9, paddingHorizontal: 5, paddingVertical: 0, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
   powerCostText: { fontFamily: F.heavy, fontSize: 11, color: '#3A4257' },
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(10,14,40,0.55)', alignItems: 'center', justifyContent: 'center' },
-  winCard: { backgroundColor: '#fff', borderRadius: 28, padding: 28, alignItems: 'center', gap: 12, width: 300, overflow: 'hidden' },
-  winTitle: { fontFamily: F.heavy, fontSize: 26, color: '#1F2640', textAlign: 'center' },
-  nextBtn: { backgroundColor: '#2563EB', borderRadius: 26, paddingVertical: 14, alignSelf: 'stretch', alignItems: 'center', borderBottomWidth: 4, borderBottomColor: '#1B4DB8' },
-  nextText: { color: '#fff', fontFamily: F.heavy, fontSize: 20 },
-  noHint: { fontFamily: F.bold, fontSize: 13, color: '#16A34A', marginTop: -6 },
-  homeLink: { fontFamily: F.bold, color: '#6B7280', fontSize: 15 },
 });

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { dayKey, streak, useGame } from './store';
 import { CountUp, F } from '../ui';
+import { Art, ArtName, ScreenHeader } from './chrome';
+import { SoftGlow } from './Chest';
 import { FadeIn } from './motion';
 import { AWARDS, progressOf, rankOf } from './awards';
 
@@ -29,17 +30,12 @@ export default function StatsScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient colors={['#4F6BFF', '#2F3FD6']} style={StyleSheet.absoluteFill} />
-      <View style={s.header}>
-        <Pressable onPress={onBack} hitSlop={12}><Icon name="arrow-left" size={26} color="#fff" /></Pressable>
-        <Text style={s.title}>Rank & Awards</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <ScreenHeader title="Rank & Awards" onBack={onBack} />
       <ScrollView contentContainerStyle={s.wrap}>
         <FadeIn delay={300} y={20} style={s.rankCard}>
-          <View style={[s.rankBadge, { backgroundColor: rk.rank.color }]}><Icon name={rk.rank.icon as any} size={34} color="#fff" /></View>
+          <View style={{ alignItems: 'center', justifyContent: 'center' }}><View style={{ position: 'absolute' }}><SoftGlow size={120} color={rk.rank.color} /></View><View style={[s.rankBadge, { backgroundColor: rk.rank.color }]}><Icon name={rk.rank.icon as any} size={34} color="#fff" /></View></View>
           <View style={{ flex: 1 }}>
-            <Text style={s.rankLabel}>Your rank</Text>
+            <Text style={s.rankLabel}>YOUR RANK</Text>
             <Text style={s.rankName}>{rk.rank.name}</Text>
             <View style={s.bar}><View style={[s.barFill, { width: `${Math.round(rk.progress * 100)}%`, backgroundColor: rk.rank.color }]} /></View>
             <Text style={s.rankSub}>{rk.next ? `${rk.next.at - rk.score} points to ${rk.next.name}` : 'Top rank reached'}</Text>
@@ -48,9 +44,9 @@ export default function StatsScreen({ onBack }: { onBack: () => void }) {
         <Text style={s.rankHint}>Points: 1 per level + 3 per award</Text>
 
         <FadeIn delay={380} y={16} style={s.bests}>
-          <Best icon="fire" label="Best streak" value={`${g.bestStreak}d`} />
-          <Best icon="brain" label="No-hint levels" value={`${g.noHint}`} />
-          <Best icon="book-open-variant" label="Words saved" value={`${Object.keys(g.book).length}`} />
+          <Best art="fire" label="Best streak" value={`${g.bestStreak}d`} />
+          <Best art="glow" label="No-hint levels" value={`${g.noHint}`} />
+          <Best art="book" label="Words saved" value={`${Object.keys(g.book).length}`} />
         </FadeIn>
 
         <FadeIn y={30} duration={600} style={s.sheet}>
@@ -84,25 +80,25 @@ export default function StatsScreen({ onBack }: { onBack: () => void }) {
               );
             })}
           </View>
-          <Text style={s.streak}>🔥 Current streak: {streak(g.days)} day{streak(g.days) === 1 ? '' : 's'}</Text>
+          <View style={s.streakRow}><Art name="fire" size={20} /><Text style={s.streak}>Current streak: {streak(g.days)} day{streak(g.days) === 1 ? '' : 's'}</Text></View>
         </FadeIn>
 
-        <Text style={s.section}>Awards {g.awards.length}/{AWARDS.length}</Text>
+        <View style={s.sectionRow}><Art name="trophy" size={28} /><Text style={s.section}>Awards</Text><Text style={s.count}>{g.awards.length}/{AWARDS.length}</Text></View>
         <View style={s.awardGrid}>
           {AWARDS.map((a, i) => {
             const done = g.awards.includes(a.id);
             const v = progressOf(a, g);
             return (
-              <FadeIn key={a.id} delay={420 + i * 40} y={14} style={done ? { ...s.award, borderColor: a.color } : s.award}>
-                <View style={[s.awardIcon, { backgroundColor: done ? a.color : '#E3E8F2' }]}>
-                  <Icon name={(done ? a.icon : 'lock-outline') as any} size={22} color={done ? '#fff' : '#9AA3B5'} />
+              <FadeIn key={a.id} delay={420 + i * 40} y={14} style={done ? { ...s.award, borderColor: a.color } : { ...s.award, ...s.awardLocked }}>
+                <View style={[s.awardIcon, { backgroundColor: done ? a.color : 'rgba(255,255,255,0.12)' }]}>
+                  <Icon name={a.icon as any} size={22} color={done ? '#fff' : 'rgba(255,255,255,0.45)'} />
                 </View>
-                <Text style={s.awardTitle} numberOfLines={1}>{a.title}</Text>
-                <Text style={s.awardDesc} numberOfLines={2}>{a.desc}</Text>
-                {done ? <Text style={[s.awardState, { color: '#16A34A' }]}>Earned · +{a.reward}</Text> : (
+                <Text style={[s.awardTitle, !done && { color: '#fff' }]} numberOfLines={1}>{a.title}</Text>
+                <Text style={[s.awardDesc, !done && { color: 'rgba(255,255,255,0.65)' }]} numberOfLines={2}>{a.desc}</Text>
+                {done ? <View style={s.earned}><Icon name="check-decagram" size={14} color="#16A34A" /><Text style={[s.awardState, { color: '#16A34A', marginTop: 0 }]}>Earned · +{a.reward}</Text></View> : (
                   <>
-                    <View style={s.bar}><View style={[s.barFill, { width: `${Math.round((v / a.goal) * 100)}%`, backgroundColor: a.color }]} /></View>
-                    <Text style={s.awardState}>{a.id === 'time5' ? `${Math.floor(v / 3600)}/${a.goal / 3600}h` : a.id === 'sharp' ? `${v}%/${a.goal}%` : `${v}/${a.goal}`} · +{a.reward}</Text>
+                    <View style={[s.bar, { backgroundColor: 'rgba(255,255,255,0.14)' }]}><View style={[s.barFill, { width: `${Math.round((v / a.goal) * 100)}%`, backgroundColor: a.color }]} /></View>
+                    <Text style={[s.awardState, { color: 'rgba(255,255,255,0.7)' }]}>{a.id === 'time5' ? `${Math.floor(v / 3600)}/${a.goal / 3600}h` : a.id === 'sharp' ? `${v}%/${a.goal}%` : `${v}/${a.goal}`} · +{a.reward}</Text>
                   </>
                 )}
               </FadeIn>
@@ -114,10 +110,10 @@ export default function StatsScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function Best({ icon, label, value }: { icon: any; label: string; value: string }) {
+function Best({ art, label, value }: { art: ArtName; label: string; value: string }) {
   return (
     <View style={s.best}>
-      <Icon name={icon} size={20} color="#2F3FD6" />
+      <Art name={art} size={30} />
       <Text style={s.bestValue}>{value}</Text>
       <Text style={s.bestLabel}>{label}</Text>
     </View>
@@ -147,11 +143,11 @@ const s = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderRadius: 26, padding: 14, width: '100%', maxWidth: 440 },
   tiles: { flexDirection: 'row', gap: 10 },
   tile: { flex: 1, borderRadius: 18, alignItems: 'center', paddingVertical: 12 },
-  tileValue: { fontFamily: F.heavy, fontSize: 26, lineHeight: 32, marginTop: 2 },
+  tileValue: { fontFamily: F.heavy, fontSize: 26, lineHeight: 36, marginTop: 2 },
   tileLabel: { fontFamily: F.bold, fontSize: 11 },
   calHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, paddingHorizontal: 6 },
   calTitle: { fontFamily: F.heavy, fontSize: 18, color: '#1F2640' },
-  calMonth: { fontFamily: F.regular, fontSize: 14, color: '#6B7280', marginTop: -2 },
+  calMonth: { fontFamily: F.regular, fontSize: 14, color: '#6B7280' },
   week: { flexDirection: 'row', marginTop: 10 },
   weekDay: { flex: 1, textAlign: 'center', fontFamily: F.bold, fontSize: 12, color: '#6B7280' },
   days: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
@@ -160,26 +156,31 @@ const s = StyleSheet.create({
   dotDone: { backgroundColor: '#22C55E' },
   dotToday: { backgroundColor: '#2563EB' },
   dayText: { fontFamily: F.bold, fontSize: 13, color: '#3A4257' },
-  streak: { fontFamily: F.bold, fontSize: 14, color: '#3A4257', textAlign: 'center', marginTop: 8 },
+  streak: { fontFamily: F.bold, fontSize: 14, color: '#3A4257' },
   rankCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderRadius: 22, padding: 16, width: '100%', maxWidth: 440 },
   rankBadge: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  rankLabel: { fontFamily: F.bold, fontSize: 12, color: '#6B7280' },
-  rankName: { fontFamily: F.heavy, fontSize: 26, color: '#1F2640', lineHeight: 30 },
+  rankLabel: { fontFamily: F.heavy, fontSize: 11, letterSpacing: 1.2, color: '#8A92A6' },
+  rankName: { fontFamily: F.black, fontSize: 26, color: '#1F2640', lineHeight: 36 },
   rankSub: { fontFamily: F.regular, fontSize: 12.5, color: '#6B7280', marginTop: 3 },
-  rankHint: { fontFamily: F.regular, fontSize: 12, color: '#DDE3FF', marginTop: -8 },
+  rankHint: { fontFamily: F.regular, fontSize: 12, color: '#DDE3FF', marginTop: 0 },
   bar: { height: 7, borderRadius: 4, backgroundColor: '#E8ECF5', overflow: 'hidden', marginTop: 4 },
   barFill: { height: 7, borderRadius: 4 },
   bests: { flexDirection: 'row', gap: 10, width: '100%', maxWidth: 440 },
   best: { flex: 1, backgroundColor: '#fff', borderRadius: 16, alignItems: 'center', paddingVertical: 10 },
-  bestValue: { fontFamily: F.heavy, fontSize: 20, color: '#1F2640', lineHeight: 24 },
+  bestValue: { fontFamily: F.heavy, fontSize: 20, color: '#1F2640', lineHeight: 28 },
   bestLabel: { fontFamily: F.bold, fontSize: 11, color: '#6B7280' },
-  section: { fontFamily: F.heavy, fontSize: 20, color: '#fff', alignSelf: 'flex-start', maxWidth: 440, width: '100%' },
+  section: { flex: 1, fontFamily: F.black, fontSize: 20, color: '#fff' },
   awardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%', maxWidth: 440 },
   award: { width: '48%', flexGrow: 1, backgroundColor: '#fff', borderRadius: 18, padding: 12, borderWidth: 2, borderColor: 'transparent', gap: 2 },
+  awardLocked: { backgroundColor: 'rgba(10,12,48,0.38)', borderColor: 'rgba(255,255,255,0.14)', borderWidth: 1 },
+  earned: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  streakRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, width: '100%', maxWidth: 440 },
+  count: { fontFamily: F.heavy, fontSize: 14, color: '#FFD966', backgroundColor: 'rgba(255,201,51,0.16)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   awardIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   awardTitle: { fontFamily: F.heavy, fontSize: 15, color: '#1F2640' },
   awardDesc: { fontFamily: F.regular, fontSize: 12, color: '#6B7280', minHeight: 30 },
   awardState: { fontFamily: F.bold, fontSize: 11.5, color: '#6B7280', marginTop: 3 },
   banner: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 22, padding: 18, width: '100%', maxWidth: 440 },
-  bannerText: { fontFamily: F.heavy, fontSize: 18, color: '#fff', lineHeight: 23 },
+  bannerText: { fontFamily: F.heavy, fontSize: 18, color: '#fff', lineHeight: 25 },
 });

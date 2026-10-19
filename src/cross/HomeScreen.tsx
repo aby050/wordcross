@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { dayKey, DAILY_REWARD, streak, updateGame, useGame } from './store';
 import { F } from '../ui';
-import { Scenery } from './Scenery';
+import { Art, fmt } from './chrome';
 import { FadeIn, Float, Shimmer, Twinkle } from './motion';
 import { THEMES } from './themes';
 import { rankOf } from './awards';
@@ -27,9 +27,9 @@ function Logo() {
       {[...'CROSS'].map((l, i) => tile(l, i, 1, i === 2))}
       {[...'WRD'].map((l, i) => tile(l, 2, i === 0 ? 0 : i + 1))}
       {/* The tiles stay put; only the sparkles twinkle, each on its own rhythm. */}
-      <Twinkle delay={0} period={2400} style={{ position: 'absolute', left: -18, top: 6 }}><Text style={s.spark}>✦</Text></Twinkle>
-      <Twinkle delay={900} period={3100} style={{ position: 'absolute', right: 10, top: -8 }}><Text style={[s.spark, { fontSize: 22 }]}>✦</Text></Twinkle>
-      <Twinkle delay={1600} period={2700} style={{ position: 'absolute', right: -16, bottom: 10 }}><Text style={s.spark}>✦</Text></Twinkle>
+      <Twinkle delay={0} period={2400} style={{ position: 'absolute', left: -18, top: 6 }}><Art name="glow" size={26} /></Twinkle>
+      <Twinkle delay={900} period={3100} style={{ position: 'absolute', right: 10, top: -8 }}><Art name="glow" size={20} /></Twinkle>
+      <Twinkle delay={1600} period={2700} style={{ position: 'absolute', right: -16, bottom: 10 }}><Art name="glow" size={26} /></Twinkle>
     </View>
   );
 }
@@ -40,17 +40,16 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
   const { height } = useWindowDimensions();
   // The first screen is the hero (Play + Daily); the other modes sit below the fold.
   const hero = Math.max(600, height - 110);
+  // Big logo on tall phones; shrink it on short ones so it never runs into the top chips.
+  const logo = Math.min(1.18, Math.max(0.74, (height - 470) / 290));
   const dailyDone = g.dailyDone.includes(dayKey());
   const stars = Object.values(g.stars).reduce((a, b) => a + b, 0);
   return (
     <View style={{ flex: 1 }}>
-      <Scenery theme={g.theme} />
-      <LinearGradient colors={['rgba(47,63,214,0.92)', 'rgba(47,63,214,0.55)', 'rgba(20,24,90,0.25)', 'rgba(20,24,90,0.6)']}
-        locations={[0, 0.35, 0.65, 1]} style={StyleSheet.absoluteFill} />
       <ScrollView contentContainerStyle={s.wrap}>
         <View style={{ minHeight: hero, width: '100%', alignItems: 'center', justifyContent: 'space-between', maxWidth: 440 }}>
         <FadeIn delay={0} y={-10} style={s.topRow}>
-          <View style={s.chip}><Icon name="fire" size={18} color="#FF8A3D" /><Text style={s.chipText}>{days} day{days === 1 ? '' : 's'}</Text></View>
+          <View style={s.chip}><Art name="fire" size={18} /><Text style={s.chipText}>{days} day{days === 1 ? '' : 's'}</Text></View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Pressable onPress={() => go('themes')} hitSlop={10} style={s.chip} accessibilityLabel="Themes">
               <Icon name="palette" size={18} color="#fff" />
@@ -60,14 +59,14 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
             </Pressable>
           </View>
           <View style={s.chip}>
-            <View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View>
-            <Text style={s.chipText}>{g.coins}</Text>
+            <Art name="coin" size={20} />
+            <Text style={s.chipText}>{fmt(g.coins)}</Text>
           </View>
         </FadeIn>
 
         {/* Hero: logo + title in the middle, the two big calls to action pinned low. */}
         <View style={{ alignItems: 'center', flex: 1, justifyContent: 'center', gap: 6 }}>
-          <View style={{ transform: [{ scale: 1.18 }], height: 4 * 51 * 1.18 + 6, marginTop: 6 }}><Logo /></View>
+          <View style={{ transform: [{ scale: logo }], height: 4 * 51 * logo + 6, marginTop: 6 + 18 * logo }}><Logo /></View>
           <FadeIn delay={500} y={14} style={{ alignItems: 'center', marginTop: 10 }}>
             <Text style={s.title1}>Crossword</Text>
             <Text style={s.title2}>Puzzle Fun</Text>
@@ -97,7 +96,7 @@ export default function HomeScreen({ go }: { go: (n: Nav) => void }) {
               <Text style={s.dailySub}>{dailyDone ? 'Done today. Come back tomorrow' : 'A fresh puzzle every day'}</Text>
             </View>
             {!dailyDone && (
-              <View style={s.reward}><View style={s.coinDot}><Text style={s.coinGlyph}>$</Text></View><Text style={s.rewardText}>+{DAILY_REWARD}</Text></View>
+              <View style={s.reward}><Art name="coin" size={20} /><Text style={s.rewardText}>+{DAILY_REWARD}</Text></View>
             )}
           </Pressable>
         </FadeIn>
@@ -171,7 +170,7 @@ const s = StyleSheet.create({
   mapCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderRadius: 24, padding: 14,
     shadowColor: '#10136B', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   bigIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  mapTitle: { fontFamily: F.heavy, fontSize: 19, color: '#1F2640', lineHeight: 26 },
+  mapTitle: { fontFamily: F.black, fontSize: 19, color: '#1F2640', lineHeight: 26 },
   mapSub: { fontFamily: F.bold, fontSize: 13.5, color: '#6B7280' },
   track: { height: 8, borderRadius: 4, backgroundColor: '#E8EBF5', marginTop: 8, overflow: 'hidden' },
   trackFill: { height: 8, borderRadius: 4, backgroundColor: '#F5B301' },
@@ -179,7 +178,7 @@ const s = StyleSheet.create({
   tile2: { height: 112, borderRadius: 24, padding: 14, justifyContent: 'flex-end', overflow: 'hidden',
     shadowColor: '#10136B', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
   tileIcon: { position: 'absolute', top: 12, left: 14, width: 40, height: 40, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
-  tile2Title: { fontFamily: F.heavy, fontSize: 17, color: '#fff', lineHeight: 24 },
+  tile2Title: { fontFamily: F.black, fontSize: 17, color: '#fff', lineHeight: 24 },
   tile2Sub: { fontFamily: F.bold, fontSize: 12.5, color: 'rgba(255,255,255,0.85)' },
   playDisc: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#F08C00', alignItems: 'center', justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: '#C77200' },
   dailyIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },
@@ -189,11 +188,9 @@ const s = StyleSheet.create({
   topRow: { flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-between', maxWidth: 440, width: '100%', alignItems: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 6 },
   chipText: { color: '#fff', fontFamily: F.heavy, fontSize: 15 },
-  coinDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#F5B301', borderWidth: 2, borderColor: '#FFD54A', alignItems: 'center', justifyContent: 'center' },
-  coinGlyph: { color: '#fff', fontFamily: F.heavy, fontSize: 11, lineHeight: 15 },
-  title1: { fontFamily: F.heavy, fontSize: 54, color: '#FFE14D', marginTop: 18, lineHeight: 58, transform: [{ rotate: '-4deg' }],
+  title1: { fontFamily: F.black, fontSize: 52, color: '#FFE14D', marginTop: 18, lineHeight: 71, paddingHorizontal: 6, transform: [{ rotate: '-4deg' }],
     textShadowColor: 'rgba(20,20,90,0.45)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
-  title2: { fontFamily: F.heavy, fontSize: 42, color: '#fff', lineHeight: 50, marginTop: -6, transform: [{ rotate: '-4deg' }],
+  title2: { fontFamily: F.black, fontSize: 40, color: '#fff', lineHeight: 55, marginTop: -4, paddingHorizontal: 6, transform: [{ rotate: '-4deg' }],
     textShadowColor: 'rgba(20,20,90,0.45)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 0 },
   badges: { flexDirection: 'row', gap: 8, marginTop: 18, flexWrap: 'wrap', justifyContent: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
@@ -202,22 +199,22 @@ const s = StyleSheet.create({
   tile: { position: 'absolute', backgroundColor: '#FFFFFF', borderRadius: 10, alignItems: 'center', justifyContent: 'center',
     borderBottomWidth: 4, borderBottomColor: '#C9CFEA', shadowColor: '#0B1060', shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   goldTile: { backgroundColor: '#FFCB2E', borderBottomColor: '#D99A00' },
-  tileText: { fontFamily: F.heavy, fontSize: 28, color: '#1F2A6B', lineHeight: 36 },
+  tileText: { fontFamily: F.black, fontSize: 28, color: '#1F2A6B', lineHeight: 39 },
   spark: { color: '#FFE14D', fontSize: 28 },
   play: { flexDirection: 'row', alignItems: 'center', gap: 14, height: 92, width: '100%', paddingHorizontal: 16, borderRadius: 32,
     overflow: 'hidden', borderBottomWidth: 5, borderBottomColor: '#C98300', shadowColor: '#10136B', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 7 }, elevation: 7 },
-  playText: { fontFamily: F.heavy, fontSize: 36, color: '#5A3500', lineHeight: 42 },
-  playSub: { fontFamily: F.bold, fontSize: 14, color: '#7A4B00', marginTop: -4 },
+  playText: { fontFamily: F.black, fontSize: 34, color: '#5A3500', lineHeight: 47 },
+  playSub: { fontFamily: F.heavy, fontSize: 14, color: '#7A4B00' },
   daily: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 26, padding: 14, overflow: 'hidden', shadowColor: '#10136B', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 5 },
   more: { alignItems: 'center', opacity: 0.9, marginTop: 16, marginBottom: 6 },
-  moreText: { fontFamily: F.bold, fontSize: 13, color: '#DDE3FF', marginBottom: -2 },
-  dailyTitle: { fontFamily: F.heavy, fontSize: 21, color: '#fff', lineHeight: 30 },
+  moreText: { fontFamily: F.bold, fontSize: 13, color: '#DDE3FF' },
+  dailyTitle: { fontFamily: F.black, fontSize: 20, color: '#fff', lineHeight: 28 },
   dailySub: { fontFamily: F.bold, fontSize: 14, color: '#FFE4F1' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 14, maxWidth: 440, width: '100%' },
   card: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 20, padding: 10, height: 68,
     shadowColor: '#10136B', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   cardIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontFamily: F.heavy, fontSize: 15, color: '#1F2640', lineHeight: 19 },
+  cardTitle: { fontFamily: F.heavy, fontSize: 15, color: '#1F2640', lineHeight: 21 },
   cardSub: { fontFamily: F.regular, fontSize: 12, color: '#6B7280' },
   trophy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: '#FFD94A', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10,
     transform: [{ rotate: '-3deg' }] },

@@ -185,7 +185,7 @@ export const Scenery = memo(function Scenery({ theme, particles = 18 }: { theme:
   const Scene = SCENES[theme] ?? Lake;
   const [box, setBox] = useState({ w: 0, h: 0 });
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}
       onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       <Svg style={StyleSheet.absoluteFill} viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
         <Scene />

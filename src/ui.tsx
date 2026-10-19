@@ -16,11 +16,12 @@ export const C = {
   gold: '#F2B01E',
 };
 
-/** Baloo 2 — loaded in App.tsx. Falls back to the system font until ready. */
+/** Nunito (Google Fonts, OFL) — loaded in App.tsx. Falls back to the system font until ready. */
 export const F = {
-  regular: 'Baloo2_500Medium',
-  bold: 'Baloo2_700Bold',
-  heavy: 'Baloo2_800ExtraBold',
+  regular: 'Nunito_600SemiBold',
+  bold: 'Nunito_700Bold',
+  heavy: 'Nunito_800ExtraBold',
+  black: 'Nunito_900Black',
 };
 
 export function Tile({ letter, value, size, selected, faded, onPress, style }: {
@@ -171,7 +172,7 @@ const s = StyleSheet.create({
   pill: { backgroundColor: C.grey, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 2, minWidth: 68, alignItems: 'center' },
   score: { fontSize: 26, fontFamily: F.heavy },
   round: { width: 66, height: 66, borderRadius: 33, backgroundColor: C.grey, alignItems: 'center', justifyContent: 'center' },
-  roundLabel: { fontSize: 11, color: C.ink, marginTop: -2, fontFamily: F.bold },
+  roundLabel: { fontSize: 11, color: C.ink, fontFamily: F.bold },
   badge: { position: 'absolute', top: -2, right: -2, backgroundColor: C.blue, borderRadius: 11, minWidth: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   badgeText: { color: '#fff', fontSize: 12, fontFamily: F.heavy },
   main: {

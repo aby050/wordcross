@@ -4,9 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFonts } from 'expo-font';
-import { Baloo2_500Medium } from '@expo-google-fonts/baloo-2/500Medium';
-import { Baloo2_700Bold } from '@expo-google-fonts/baloo-2/700Bold';
-import { Baloo2_800ExtraBold } from '@expo-google-fonts/baloo-2/800ExtraBold';
+import { Nunito_600SemiBold } from '@expo-google-fonts/nunito/600SemiBold';
+import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
+import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
+import { Nunito_900Black } from '@expo-google-fonts/nunito/900Black';
 import ArrowGame from './src/ArrowGame';
 import WordGame from './src/WordGame';
 import { PUZZLES } from './src/arrowPuzzles';
@@ -25,22 +26,32 @@ import SettingsScreen from './src/cross/SettingsScreen';
 import Tutorial from './src/cross/Tutorial';
 import { Toast } from './src/ui';
 import { ScreenIn } from './src/cross/motion';
+import { Scenery } from './src/cross/Scenery';
+import { Art, BG, IconButton, ScreenBg, ScreenHeader } from './src/cross/chrome';
 
 type Screen =
-  | { kind: 'home' } | { kind: 'play'; level: number; daily?: boolean } | { kind: 'themes' } | { kind: 'map' } | { kind: 'stats' } | { kind: 'book' } | { kind: 'settings' }
+  | { kind: 'home' } | { kind: 'play'; level: number; daily?: boolean } | { kind: 'themes'; from?: 'settings' } | { kind: 'map' } | { kind: 'stats' } | { kind: 'book' } | { kind: 'settings' }
   | { kind: 'arrowMenu' } | { kind: 'arrow'; level: number; id?: number } | { kind: 'battle'; id: number };
 
-/** Colour at the foot of the Home screen (theme sky under the navy wash), so the home-indicator strip blends in. */
-function homeFloor(id: Parameters<typeof themeById>[0]) {
-  const hex = themeById(id).bg[1].slice(1);
-  const c = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  const wash = [20, 24, 90];
-  return `rgb(${c.map((v, i) => Math.round(v * 0.4 + wash[i] * 0.6)).join(',')})`;
+/** Home washes the scenery in brand blue at the top so the logo and white UI read clearly. */
+const HOME_SHADE = ['rgba(47,63,214,0.92)', 'rgba(47,63,214,0.55)', 'rgba(20,24,90,0.25)', 'rgba(20,24,90,0.6)'] as const;
+
+/** The backdrop is drawn once here, edge to edge, so it runs under the status bar and the home indicator. */
+function Backdrop({ kind, theme }: { kind: Screen['kind']; theme: Parameters<typeof themeById>[0] }) {
+  if (kind !== 'home' && kind !== 'play' && kind !== 'map' && kind !== 'themes') return <ScreenBg />;
+  return (
+    <>
+      <Scenery theme={theme} />
+      {kind === 'home' && <LinearGradient colors={[...HOME_SHADE]} locations={[0, 0.35, 0.65, 1]} style={StyleSheet.absoluteFill} />}
+      {/* The map walks through the player's own scenery, dimmed so the path reads. */}
+      {(kind === 'map' || kind === 'themes') && <LinearGradient colors={['rgba(16,19,63,0.82)', 'rgba(16,19,63,0.45)', 'rgba(16,19,63,0.7)']} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />}
+    </>
+  );
 }
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
-  const [fontsLoaded] = useFonts({ Baloo2_500Medium, Baloo2_700Bold, Baloo2_800ExtraBold, ...Icon.font });
+  const [fontsLoaded] = useFonts({ Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black, ...Icon.font });
   const game = useGame();
   const stars = useStars();
   const total = Object.values(stars).reduce((a, b) => a + b, 0);
@@ -61,43 +72,37 @@ export default function App() {
   const showTutorial = tutorial || (loaded && !game.seenTutorial && screen.kind === 'home');
   const closeTutorial = () => { setTutorial(false); updateGame({ seenTutorial: true }); };
 
-  if (!fontsLoaded) return <View style={[s.root, { backgroundColor: '#2F3FD6' }]} />;
-
-  const dark = screen.kind === 'home' || screen.kind === 'themes' || screen.kind === 'map' || screen.kind === 'stats' || screen.kind === 'book' || screen.kind === 'play' || screen.kind === 'settings'
-    || screen.kind === 'arrowMenu' || screen.kind === 'arrow' || screen.kind === 'battle';
+  if (!fontsLoaded) return <View style={[s.root, { backgroundColor: BG[0] }]} />;
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: dark ? '#2F3FD6' : '#fff' }]}>
-      <StatusBar style={dark ? 'light' : 'dark'} />
-      {/* The play panel is white: carry it down through the home-indicator inset instead of a blue strip. */}
-      {(screen.kind === 'play' || screen.kind === 'home') && <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80, backgroundColor: screen.kind === 'home' ? homeFloor(game.theme) : '#fff' }} />}
+    <SafeAreaView style={[s.root, { backgroundColor: BG[2] }]}>
+      <StatusBar style={screen.kind === 'play' ? (themeById(game.theme).headerText === '#FFFFFF' ? 'light' : 'dark') : 'light'} />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}><Backdrop kind={screen.kind} theme={game.theme} /></View>
+      {/* The play panel is white: carry it down through the home-indicator inset. */}
+      {screen.kind === 'play' && <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80, backgroundColor: '#fff' }} />}
 
       <ScreenIn key={`${screen.kind}-${'level' in screen ? screen.level : ''}-${'id' in screen ? screen.id : ''}`}>
       {screen.kind === 'home' && <HomeScreen go={(n) => setScreen(
         n === 'play' ? { kind: 'play', level: game.level } : n === 'daily' ? { kind: 'play', level: dailyLevel(), daily: true } : n === 'arrow' ? { kind: 'arrowMenu' }
           : n === 'battle' ? { kind: 'battle', id: Date.now() } : { kind: n })} />}
-      {screen.kind === 'play' && <CrosswordScreen key={`${screen.level}${screen.daily}${replayN}`} onReplay={() => setReplayN((n) => n + 1)} level={screen.level} daily={screen.daily} onBack={home}
+      {screen.kind === 'play' && <CrosswordScreen key={`${screen.level}${screen.daily}${replayN}`} onReplay={() => setReplayN((n) => n + 1)} level={screen.level} daily={screen.daily} onBack={home} onMap={() => setScreen({ kind: 'map' })}
         onNext={() => (screen.daily ? home() : setScreen({ kind: 'play', level: screen.level + 1 }))} />}
       {screen.kind === 'map' && <LevelMapScreen onBack={home} onPlay={(level) => setScreen({ kind: 'play', level })} />}
-      {screen.kind === 'themes' && <ThemesScreen onBack={home} />}
+      {screen.kind === 'themes' && <ThemesScreen onBack={screen.from === 'settings' ? () => setScreen({ kind: 'settings' }) : home} />}
       {screen.kind === 'stats' && <StatsScreen onBack={home} />}
       {screen.kind === 'book' && <WordBookScreen onBack={home} />}
-      {screen.kind === 'settings' && <SettingsScreen onBack={home} onTutorial={() => setTutorial(true)} />}
+      {screen.kind === 'settings' && <SettingsScreen onBack={home} onTutorial={() => setTutorial(true)} onThemes={() => setScreen({ kind: 'themes', from: 'settings' })} />}
 
       {(screen.kind === 'arrowMenu' || screen.kind === 'arrow' || screen.kind === 'battle') && (
-        <View style={s.header}>
-          <Pressable onPress={screen.kind === 'arrow' ? arrowMenu : home} hitSlop={12}><Icon name="arrow-left" size={26} color="#fff" /></Pressable>
-          <Text style={s.title}>{screen.kind === 'arrow' ? `Arrow Puzzle ${screen.level + 1}` : screen.kind === 'battle' ? 'Word Battle' : 'Arrow Puzzles'}</Text>
-          <Pressable onPress={() => updateGame({ muted: !game.muted })} hitSlop={12}>
-            <Icon name={game.muted ? 'volume-off' : 'volume-high'} size={24} color="#fff" />
-          </Pressable>
-        </View>
+        <ScreenHeader title={screen.kind === 'arrow' ? `Arrow Puzzle ${screen.level + 1}` : screen.kind === 'battle' ? 'Word Battle' : 'Arrow Puzzles'}
+          onBack={screen.kind === 'arrow' ? arrowMenu : home}
+          right={<IconButton icon={game.muted ? 'volume-off' : 'volume-high'} label={game.muted ? 'Sound on' : 'Sound off'} onPress={() => updateGame({ muted: !game.muted })} />} />
       )}
       {screen.kind === 'arrowMenu' && (
         <View style={s.sheet}>
         <ScrollView contentContainerStyle={s.menu}>
           <View style={s.progress}>
-            <Icon name="star-circle" size={40} color="#F5B301" />
+            <Art name="star" size={46} />
             <View style={{ flex: 1 }}>
               <Text style={s.progressTitle}>{total} of {PUZZLES.length * 3} stars</Text>
               <View style={s.bar}><View style={[s.barFill, { width: `${Math.round((total / (PUZZLES.length * 3)) * 100)}%` }]} /></View>
@@ -107,7 +112,7 @@ export default function App() {
           <View style={s.levels}>
             {PUZZLES.map((p, i) => (
               isUnlocked(stars, i) ? (
-                <Pressable key={i} style={({ pressed }) => [s.level, stars[i] ? s.levelDone : null, pressed && { transform: [{ scale: 0.96 }] }]} onPress={() => setScreen({ kind: 'arrow', level: i })}>
+                <Pressable key={i} style={({ pressed }) => [s.level, stars[i] ? s.levelDone : s.levelNext, pressed && { transform: [{ scale: 0.96 }] }]} onPress={() => setScreen({ kind: 'arrow', level: i })}>
                   <Text style={s.levelNum}>{i + 1}</Text>
                   <View style={{ flexDirection: 'row' }}>
                     {[1, 2, 3].map((k) => <Icon key={k} name={k <= (stars[i] ?? 0) ? 'star' : 'star-outline'} size={14} color={k <= (stars[i] ?? 0) ? '#F5B301' : '#C9CFDD'} />)}
@@ -139,19 +144,20 @@ const s = StyleSheet.create({
   root: { flex: 1, userSelect: 'none', paddingTop: Platform.OS === 'android' ? 32 : 0 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   title: { fontSize: 22, fontFamily: F.heavy, color: '#fff' },
-  sheet: { flex: 1, backgroundColor: C.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' },
+  sheet: { flex: 1, backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden', marginTop: 4 },
   menu: { alignItems: 'center', padding: 24, paddingBottom: 48, gap: 12, flexGrow: 1 },
   section: { alignSelf: 'stretch', maxWidth: 420, fontSize: 18, fontFamily: F.heavy, color: C.ink },
   levels: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', maxWidth: 420, alignSelf: 'stretch', justifyContent: 'center' },
   progress: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 20, padding: 14, alignSelf: 'stretch', maxWidth: 420,
     shadowColor: '#10136B', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  progressTitle: { fontFamily: F.heavy, fontSize: 17, color: '#1F2640' },
+  progressTitle: { fontFamily: F.black, fontSize: 17, color: '#1F2640' },
   progressSub: { fontFamily: F.regular, fontSize: 13, color: '#6B7280', marginTop: 4 },
   bar: { height: 8, borderRadius: 4, backgroundColor: '#E8ECF5', overflow: 'hidden', marginTop: 4 },
   barFill: { height: 8, borderRadius: 4, backgroundColor: '#F5B301' },
   level: { width: 72, height: 76, borderRadius: 20, backgroundColor: '#fff', borderWidth: 2, borderColor: '#E3E8F2', borderBottomWidth: 4, alignItems: 'center', justifyContent: 'center', gap: 2 },
   levelDone: { borderColor: '#FFD66B', backgroundColor: '#FFFBEF' },
-  levelNum: { fontSize: 26, fontFamily: F.heavy, color: '#2B2F3A', lineHeight: 34 },
+  levelNext: { borderColor: '#F7A600', backgroundColor: '#FFE7A0' },
+  levelNum: { fontSize: 26, fontFamily: F.black, color: '#2B2F3A', lineHeight: 36 },
   levelStars: { fontSize: 12, color: '#E0A10E', letterSpacing: 1 },
   locked: { backgroundColor: '#EEF1F6', borderColor: '#DDE2EA' },
   levelSub: { fontSize: 11, color: '#7A6440', fontFamily: F.bold },
