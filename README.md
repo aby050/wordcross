@@ -13,3 +13,7 @@ npx expo start
 ```
 
 Release scripts live in `scripts/`.
+
+## Privacy
+
+https://wordcross-app.abhay050.workers.dev/privacy
