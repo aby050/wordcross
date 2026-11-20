@@ -10,7 +10,7 @@
 and nothing leaves your device.
 
 [![CI](https://github.com/aby050/wordcross/actions/workflows/ci.yml/badge.svg)](https://github.com/aby050/wordcross/actions/workflows/ci.yml)
-[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-orange)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Expo SDK 57](https://img.shields.io/badge/Expo-SDK%2057-000020?logo=expo)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -86,6 +86,6 @@ WordCross collects no data. See the [privacy policy](https://rvastudio.in/wordcr
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) — free to read, learn from, modify and share for
-noncommercial use. The WordCross name, icon and store listings belong to RVA Studio.
-Contact **work@rvastudio.in** for anything else.
+[MIT](LICENSE). Use, modify and ship it freely, including commercially.
+
+The WordCross name, icon and store listings belong to RVA Studio and are not covered by the code license.
